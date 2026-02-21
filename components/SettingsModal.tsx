@@ -6,6 +6,10 @@ interface SettingsModalProps {
   setInitialHelp: (n: number) => void;
   selectedLanguages: string[];
   setSelectedLanguages: (langs: string[]) => void;
+  learningLanguage: string;
+  setLearningLanguage: (lang: string) => void;
+  translationLanguage: string;
+  setTranslationLanguage: (lang: string) => void;
   onClose: () => void;
   isDarkMode: boolean;
 }
@@ -23,6 +27,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   setInitialHelp, 
   selectedLanguages, 
   setSelectedLanguages, 
+  learningLanguage,
+  setLearningLanguage,
+  translationLanguage,
+  setTranslationLanguage,
   onClose,
   isDarkMode
 }) => {
@@ -93,6 +101,84 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                     {isActive && (
                       <div className="w-5 h-5 rounded-none bg-green-500 flex items-center justify-center">
+                        <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section>
+            <label className={`block text-[10px] font-mystic uppercase tracking-[0.1em] mb-6 ${isDarkMode ? 'text-green-900' : 'text-slate-400'}`}>
+              IDIOMA DE APRENDIZAJE (TRADUCTOR)
+            </label>
+            <div className="grid grid-cols-1 gap-3">
+              {LANGUAGES.map((lang) => {
+                const isSelected = learningLanguage === lang.id;
+                
+                return (
+                  <button
+                    key={`learn-${lang.id}`}
+                    onClick={() => setLearningLanguage(lang.id)}
+                    className={`group w-full flex items-center justify-between p-4 rounded-none border-4 transition-all duration-300 ${
+                      isSelected
+                      ? (isDarkMode ? 'border-cyan-500 bg-cyan-500/10' : 'border-indigo-600 bg-indigo-50 shadow-md')
+                      : (isDarkMode ? 'border-green-900 bg-black opacity-40 grayscale' : 'border-slate-100 bg-white hover:border-slate-200 grayscale opacity-50')
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{lang.flag}</span>
+                        <span className={`font-mono font-bold tracking-tight uppercase ${isSelected ? (isDarkMode ? 'text-cyan-400' : 'text-indigo-900') : (isDarkMode ? 'text-green-900' : 'text-slate-500')}`}>
+                          {lang.name}
+                        </span>
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <div className="w-5 h-5 rounded-none bg-cyan-500 flex items-center justify-center">
+                        <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section>
+            <label className={`block text-[10px] font-mystic uppercase tracking-[0.1em] mb-6 ${isDarkMode ? 'text-green-900' : 'text-slate-400'}`}>
+              IDIOMA DE TRADUCCIÓN (TRADUCTOR)
+            </label>
+            <div className="grid grid-cols-1 gap-3">
+              {LANGUAGES.map((lang) => {
+                const isSelected = translationLanguage === lang.id;
+                
+                return (
+                  <button
+                    key={`trans-${lang.id}`}
+                    onClick={() => setTranslationLanguage(lang.id)}
+                    className={`group w-full flex items-center justify-between p-4 rounded-none border-4 transition-all duration-300 ${
+                      isSelected
+                      ? (isDarkMode ? 'border-purple-500 bg-purple-500/10' : 'border-indigo-600 bg-indigo-50 shadow-md')
+                      : (isDarkMode ? 'border-green-900 bg-black opacity-40 grayscale' : 'border-slate-100 bg-white hover:border-slate-200 grayscale opacity-50')
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{lang.flag}</span>
+                        <span className={`font-mono font-bold tracking-tight uppercase ${isSelected ? (isDarkMode ? 'text-purple-400' : 'text-indigo-900') : (isDarkMode ? 'text-green-900' : 'text-slate-500')}`}>
+                          {lang.name}
+                        </span>
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <div className="w-5 h-5 rounded-none bg-purple-500 flex items-center justify-center">
                         <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
                         </svg>

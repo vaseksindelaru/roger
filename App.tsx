@@ -37,6 +37,8 @@ const App: React.FC = () => {
   const [showAlienGame, setShowAlienGame] = useState(false);
   const [initialHelp, setInitialHelp] = useState(0);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(['inglés']);
+  const [learningLanguage, setLearningLanguage] = useState<string>('inglés');
+  const [translationLanguage, setTranslationLanguage] = useState<string>('español');
   const [completedSectors, setCompletedSectors] = useState<string[]>([]);
   const [currentSector, setCurrentSector] = useState<{id: string, name: string, image?: string} | null>(null);
   const [availableStations, setAvailableStations] = useState<string[]>(mergeStationCatalog(GALACTIC_PRESET_STATIONS));
@@ -443,6 +445,8 @@ const App: React.FC = () => {
         <SettingsModal 
           initialHelp={initialHelp} setInitialHelp={setInitialHelp}
           selectedLanguages={selectedLanguages} setSelectedLanguages={setSelectedLanguages}
+          learningLanguage={learningLanguage} setLearningLanguage={setLearningLanguage}
+          translationLanguage={translationLanguage} setTranslationLanguage={setTranslationLanguage}
           onClose={() => { soundManager.playSFX('beep'); setShowSettings(false); }}
           isDarkMode={isDarkMode}
         />
@@ -468,7 +472,12 @@ const App: React.FC = () => {
         />
       )}
       {showAlienGame && (
-        <AlienTranslatorGame onClose={() => setShowAlienGame(false)} />
+        <AlienTranslatorGame 
+          learningLanguage={learningLanguage}
+          translationLanguage={translationLanguage}
+          words={words}
+          onClose={() => setShowAlienGame(false)} 
+        />
       )}
     </div>
   );

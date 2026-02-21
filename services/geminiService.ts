@@ -525,6 +525,172 @@ export async function generateAlienDialogue(speciesId: string, difficulty: numbe
   return result;
 }
 
+export async function generateLanguageDialogue(targetLanguage: string): Promise<{
+  targetText: string;
+  translation: string;
+  options: string[];
+}> {
+  const languageNames: Record<string, { name: string; code: string }> = {
+    'español': { name: 'Spanish', code: 'es' },
+    'inglés': { name: 'English', code: 'en' },
+    'alemán': { name: 'German', code: 'de' },
+    'francés': { name: 'French', code: 'fr' },
+    'italiano': { name: 'Italian', code: 'it' },
+  };
+
+  const langInfo = languageNames[targetLanguage] || { name: 'English', code: 'en' };
+
+  const response = await generateContentWithTextFallback((model) => ({
+    model,
+    contents: `You are creating a language learning game for Spanish speakers learning ${langInfo.name}.
+    
+    Create a simple phrase in Spanish that the user needs to translate to ${langInfo.name}.
+    
+    REQUIREMENTS:
+    1. Create a SHORT phrase in Spanish (2-6 words) - simple everyday phrases
+    2. Provide the correct ${langInfo.name} translation
+    3. Provide 4 possible ${langInfo.name} translations (1 correct, 3 wrong but plausible)
+    
+    Phrase categories (choose randomly):
+    - Greetings: "Hello", "Good morning", "How are you?", "Goodbye"
+    - Common questions: "Where is...?", "How much...?", "What time...?"
+    - Everyday phrases: "Thank you", "Please", "Excuse me", "I don't understand"
+    - Simple sentences: "I like...", "I want...", "Can you help me?"
+    
+    Make the wrong options grammatically incorrect or semantically wrong but still in ${langInfo.name}.
+    
+    Return JSON format.`,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          targetText: { type: Type.STRING, description: "The phrase in Spanish to translate" },
+          translation: { type: Type.STRING, description: `The correct ${langInfo.name} translation` },
+          options: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: `4 possible ${langInfo.name} translations (1 correct, 3 wrong)`
+          }
+        },
+        required: ["targetText", "translation", "options"]
+      }
+    }
+  }));
+
+  const result = JSON.parse(response.text || "{}");
+  
+  // Ensure options include the correct answer
+  if (!result.options?.includes(result.translation)) {
+    result.options = result.options || [];
+    result.options[Math.floor(Math.random() * 4)] = result.translation;
+  }
+  
+  return result;
+}
+
+export async function generateVocabularyDialogue(
+  learningLanguage: string, 
+  translationLanguage: string,
+  words: WordItem[]
+): Promise<{
+  targetText: string;
+  translation: string;
+  options: string[];
+  optionTranslations: string[];
+}> {
+  const languageNames: Record<string, { name: string; code: string }> = {
+    'español': { name: 'Spanish', code: 'es' },
+    'inglés': { name: 'English', code: 'en' },
+    'alemán': { name: 'German', code: 'de' },
+    'francés': { name: 'French', code: 'fr' },
+    'italiano': { name: 'Italian', code: 'it' },
+  };
+
+  const learningLang = languageNames[learningLanguage] || { name: 'English', code: 'en' };
+  const translationLang = languageNames[translationLanguage] || { name: 'Spanish', code: 'es' };
+  
+  // Get random words from vocabulary
+  const shuffledWords = [...words].sort(() => Math.random() - 0.5);
+  const selectedWords = shuffledWords.slice(0, Math.min(3, shuffledWords.length));
+  const wordList = selectedWords.map(w => w.word).join(', ');
+
+  const response = await generateContentWithTextFallback((model) => ({
+    model,
+    contents: `You are creating a Space Quest themed interactive dialogue game for language learning.
+    
+    Create a dialogue scenario in ${learningLang.name} that:
+    1. Uses one or more of these vocabulary words: ${wordList}
+    2. Is themed around Space Quest (Roger Wilco, spaceships, aliens, sci-fi adventures)
+    3. Presents a situation or question that needs a response
+    
+    The scenario should be like a conversation where:
+    - targetText: A narrative setup, question, or dialogue starter in ${learningLang.name}
+    - translation: The ${translationLang.name} translation of the targetText
+    - options: 4 possible responses or continuations in ${learningLang.name} (1 correct/most appropriate, 3 wrong but plausible)
+    - optionTranslations: The ${translationLang.name} translation for each option
+    
+    Example scenarios:
+    - A character asks a question and the player must choose the appropriate response
+    - A narrative situation where the player must choose what to say next
+    - A dialogue with an alien or space station computer
+    
+    Example format (learning German, translating to Spanish):
+    - targetText: "Der Roboter fragt: 'Wohin möchtest du fliegen?'"
+    - translation: "El robot pregunta: '¿A dónde quieres volar?'"
+    - options: ["Ich möchte zum Mars fliegen", "Ich möchte zum Mond essen", "Der Raumschiff ist blau", "Guten Tag, wie geht es?"]
+    - optionTranslations: ["Quiero volar a Marte", "Quiero comer a la luna", "La nave espacial es azul", "Buenos días, ¿cómo estás?"]
+    
+    Make the options feel like natural dialogue continuations, not just translations.
+    Return JSON format.`,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          targetText: { type: Type.STRING, description: `The dialogue setup/question in ${learningLang.name}` },
+          translation: { type: Type.STRING, description: `The ${translationLang.name} translation` },
+          options: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: `4 possible responses in ${learningLang.name}`
+          },
+          optionTranslations: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: `The ${translationLang.name} translation for each option`
+          }
+        },
+        required: ["targetText", "translation", "options", "optionTranslations"]
+      }
+    }
+  }));
+
+  const result = JSON.parse(response.text || "{}");
+  
+  // Ensure we have 4 options
+  if (!result.options || result.options.length < 4) {
+    result.options = result.options || [];
+    while (result.options.length < 4) {
+      result.options.push(result.targetText || "");
+    }
+  }
+  
+  // Ensure we have 4 option translations
+  if (!result.optionTranslations || result.optionTranslations.length < 4) {
+    result.optionTranslations = result.optionTranslations || [];
+    while (result.optionTranslations.length < 4) {
+      result.optionTranslations.push(result.translation || "");
+    }
+  }
+  
+  // Pick a random correct answer from options
+  const correctIndex = Math.floor(Math.random() * 4);
+  result.translation = result.optionTranslations[correctIndex];
+  
+  return result;
+}
+
 export async function generateSectorImage(sectorName: string, description?: string): Promise<string> {
   if (!GEMINI_KEY) {
     throw new Error("Falta configurar GEMINI_API_KEY/GOOGLE_API_KEY para generar imagen de sector.");

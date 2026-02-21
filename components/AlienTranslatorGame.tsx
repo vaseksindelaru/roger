@@ -1,36 +1,33 @@
- 
-import React, { useState, useEffect, useCallback } from 'react';
-import { generateAlienDialogue } from '../services/geminiService';
-import { soundManager } from '../services/SoundManager';
 
-interface AlienSpecies {
+import React, { useState, useEffect, useCallback } from 'react';
+import { generateVocabularyDialogue } from '../services/geminiService';
+import { soundManager } from '../services/SoundManager';
+import { WordItem } from '../types';
+
+interface LanguageData {
   id: string;
   name: string;
-  description: string;
-  difficulty: number;
-  color: string;
-  avatar: string;
+  nativeName: string;
+  flag: string;
 }
 
-const ALIEN_SPECIES: AlienSpecies[] = [
-  { id: 'keronian', name: 'Keroniano', description: 'Comerciantes amigables del sistema Keron', difficulty: 1, color: '#22c55e', avatar: '👽' },
-  { id: 'sarien', name: 'Sarien', description: 'Guerreros estrictos del imperio Sarien', difficulty: 2, color: '#ef4444', avatar: '🛸' },
-  { id: 'estray', name: 'Estrayano', description: 'Sereneros místicos de Estraana', difficulty: 3, color: '#a855f7', avatar: '🌟' },
-  { id: 'vohaul', name: 'Vohaul', description: 'IA rebelde con vocabulario técnico', difficulty: 4, color: '#06b6d4', avatar: '🤖' },
-  { id: 'slug', name: 'Slug', description: 'Criaturas lentas pero sabias', difficulty: 5, color: '#f97316', avatar: '🦠' },
-];
+const LANGUAGES: Record<string, LanguageData> = {
+  'español': { id: 'español', name: 'Español', nativeName: 'Español', flag: '🇪🇸' },
+  'inglés': { id: 'inglés', name: 'English', nativeName: 'English', flag: '🇺🇸' },
+  'alemán': { id: 'alemán', name: 'German', nativeName: 'Deutsch', flag: '🇩🇪' },
+  'francés': { id: 'francés', name: 'French', nativeName: 'Français', flag: '🇫🇷' },
+  'italiano': { id: 'italiano', name: 'Italian', nativeName: 'Italiano', flag: '🇮🇹' }
+};
 
 interface DialogueTurn {
-  speaker: 'alien' | 'player';
-  alienText: string;
+  targetText: string;
   translation: string;
-  options?: string[];
-  correctOption?: number;
+  options: string[];
+  optionTranslations: string[];
 }
 
 interface GameState {
-  phase: 'intro' | 'select' | 'dialogue' | 'result';
-  selectedSpecies: AlienSpecies | null;
+  phase: 'intro' | 'dialogue' | 'result';
   currentTurn: number;
   score: number;
   dialogue: DialogueTurn[];
@@ -38,10 +35,14 @@ interface GameState {
   isCorrect: boolean | null;
 }
 
-const AlienTranslatorGame: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+const AlienTranslatorGame: React.FC<{ 
+  learningLanguage: string; 
+  translationLanguage: string;
+  words: WordItem[];
+  onClose: () => void 
+}> = ({ learningLanguage, translationLanguage, words, onClose }) => {
   const [state, setState] = useState<GameState>({
     phase: 'intro',
-    selectedSpecies: null,
     currentTurn: 0,
     score: 0,
     dialogue: [],
@@ -50,22 +51,35 @@ const AlienTranslatorGame: React.FC<{ onClose: () => void }> = ({ onClose }) => 
   });
   const [isLoading, setIsLoading] = useState(false);
   const [currentOptions, setCurrentOptions] = useState<string[]>([]);
-  const [correctAnswer, setCorrectAnswer] = useState<string>('');
+  const [currentOptionTranslations, setCurrentOptionTranslations] = useState<string[]>([]);
+  const [correctAnswerIndex, setCorrectAnswerIndex] = useState<number>(0);
+  const [showTranslation, setShowTranslation] = useState(false);
 
-  const startEncounter = async (species: AlienSpecies) => {
+  const learningLang = LANGUAGES[learningLanguage] || LANGUAGES['inglés'];
+  const translationLang = LANGUAGES[translationLanguage] || LANGUAGES['español'];
+
+  const startGame = async () => {
+    if (words.length < 3) {
+      return;
+    }
     setIsLoading(true);
     soundManager.playSFX('scan');
     try {
-      const dialogue = await generateAlienDialogue(species.id, species.difficulty);
+      const dialogue = await generateVocabularyDialogue(
+        learningLanguage, 
+        translationLanguage, 
+        words
+      );
       setState(prev => ({
         ...prev,
         phase: 'dialogue',
-        selectedSpecies: species,
         dialogue: [dialogue],
         currentTurn: 0,
       }));
       setCurrentOptions(dialogue.options || []);
-      setCorrectAnswer(dialogue.translation);
+      setCurrentOptionTranslations(dialogue.optionTranslations || []);
+      setCorrectAnswerIndex(0); // First option is always correct
+      setShowTranslation(false);
       soundManager.playSFX('success');
     } catch (err) {
       console.error(err);
@@ -75,31 +89,32 @@ const AlienTranslatorGame: React.FC<{ onClose: () => void }> = ({ onClose }) => 
     }
   };
 
-  const handleAnswer = async (answer: string) => {
-    const isCorrect = answer === correctAnswer;
+  const handleAnswer = async (answerIndex: number) => {
+    const isCorrect = answerIndex === correctAnswerIndex;
     soundManager.playSFX(isCorrect ? 'success' : 'error');
     
     setState(prev => ({
       ...prev,
-      score: isCorrect ? prev.score + 10 * (prev.selectedSpecies?.difficulty || 1) : prev.score,
+      score: isCorrect ? prev.score + 10 : prev.score,
       feedback: isCorrect 
-        ? '¡Comunicación exitosa! El alienígena asiente con aprobación.' 
-        : `¡Error de traducción! La respuesta correcta era: "${correctAnswer}"`,
+        ? '¡Correcto! Excelente elección.' 
+        : `¡Incorrecto! La respuesta correcta era: "${currentOptions[correctAnswerIndex]}"`,
       isCorrect,
     }));
 
     // Generate next turn after delay
     setTimeout(async () => {
-      if (state.currentTurn >= 4) {
+      if (state.currentTurn >= 3) {
         setState(prev => ({ ...prev, phase: 'result' }));
         return;
       }
 
       setIsLoading(true);
       try {
-        const nextDialogue = await generateAlienDialogue(
-          state.selectedSpecies!.id, 
-          state.selectedSpecies!.difficulty
+        const nextDialogue = await generateVocabularyDialogue(
+          learningLanguage, 
+          translationLanguage, 
+          words
         );
         setState(prev => ({
           ...prev,
@@ -109,7 +124,9 @@ const AlienTranslatorGame: React.FC<{ onClose: () => void }> = ({ onClose }) => 
           isCorrect: null,
         }));
         setCurrentOptions(nextDialogue.options || []);
-        setCorrectAnswer(nextDialogue.translation);
+        setCurrentOptionTranslations(nextDialogue.optionTranslations || []);
+        setCorrectAnswerIndex(0);
+        setShowTranslation(false);
       } catch (err) {
         console.error(err);
       } finally {
@@ -118,14 +135,35 @@ const AlienTranslatorGame: React.FC<{ onClose: () => void }> = ({ onClose }) => 
     }, 2000);
   };
 
-  const speakAlien = (text: string) => {
+  const speakText = (text: string, lang?: string) => {
     soundManager.playSFX('beep');
-    // Use Web Speech API for alien voice effect
     if ('speechSynthesis' in window) {
+      // Cancel any ongoing speech
+      speechSynthesis.cancel();
+      
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.7;
-      utterance.pitch = 0.5;
+      utterance.rate = 0.8;
+      utterance.pitch = 1;
       utterance.volume = 0.8;
+      
+      // Map language names to speech synthesis language codes
+      const langCodes: Record<string, string> = {
+        'español': 'es-ES',
+        'inglés': 'en-US',
+        'alemán': 'de-DE',
+        'francés': 'fr-FR',
+        'italiano': 'it-IT'
+      };
+      
+      const targetLang = lang || learningLanguage;
+      const langCode = langCodes[targetLang] || 'en-US';
+      
+      // Try to find a voice for the target language
+      const voices = speechSynthesis.getVoices();
+      const voice = voices.find(v => v.lang.startsWith(langCode.split('-')[0]));
+      if (voice) utterance.voice = voice;
+      utterance.lang = langCode;
+      
       speechSynthesis.speak(utterance);
     }
   };
@@ -135,7 +173,6 @@ const AlienTranslatorGame: React.FC<{ onClose: () => void }> = ({ onClose }) => 
     setState(prev => ({
       ...prev,
       phase: 'intro',
-      selectedSpecies: null,
       currentTurn: 0,
       score: 0,
       dialogue: [],
@@ -143,8 +180,22 @@ const AlienTranslatorGame: React.FC<{ onClose: () => void }> = ({ onClose }) => 
       isCorrect: null,
     }));
     setCurrentOptions([]);
-    setCorrectAnswer('');
+    setCurrentOptionTranslations([]);
+    setCorrectAnswerIndex(0);
+    setShowTranslation(false);
   };
+
+  // Load voices on mount
+  useEffect(() => {
+    if ('speechSynthesis' in window) {
+      speechSynthesis.getVoices();
+      speechSynthesis.onvoiceschanged = () => {
+        speechSynthesis.getVoices();
+      };
+    }
+  }, []);
+
+  const hasEnoughWords = words.length >= 3;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-sm overflow-y-auto">
@@ -154,10 +205,10 @@ const AlienTranslatorGame: React.FC<{ onClose: () => void }> = ({ onClose }) => 
         {/* Header */}
         <div className="text-center mb-6 md:mb-8">
           <h2 className="font-mystic text-xl md:text-3xl text-green-500 flicker tracking-wider">
-            🛸 TRADUCTOR UNIVERSAL 🛸
+            🌍 TRADUCTOR UNIVERSAL 🌍
           </h2>
           <p className="text-green-700 font-mono text-[10px] md:text-xs mt-2 uppercase tracking-widest">
-            Aprende idiomas alienígenas a través del diálogo
+            Aprende {learningLang.name} con tu vocabulario
           </p>
         </div>
 
@@ -168,14 +219,12 @@ const AlienTranslatorGame: React.FC<{ onClose: () => void }> = ({ onClose }) => 
               PUNTOS: <span className="text-green-500 font-bold text-lg md:text-xl">{state.score}</span>
             </div>
             <div className="text-green-400 font-mono text-xs md:text-sm">
-              RONDA: <span className="text-green-500 font-bold">{state.currentTurn + 1}/5</span>
+              RONDA: <span className="text-green-500 font-bold">{state.currentTurn + 1}/4</span>
             </div>
-            {state.selectedSpecies && (
-              <div className="flex items-center gap-2">
-                <span className="text-xl md:text-2xl">{state.selectedSpecies.avatar}</span>
-                <span className="text-green-500 font-mystic text-xs md:text-sm">{state.selectedSpecies.name}</span>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <span className="text-xl md:text-2xl">{learningLang.flag}</span>
+              <span className="text-green-500 font-mystic text-xs md:text-sm">{learningLang.nativeName}</span>
+            </div>
           </div>
         )}
 
@@ -183,38 +232,57 @@ const AlienTranslatorGame: React.FC<{ onClose: () => void }> = ({ onClose }) => 
         {state.phase === 'intro' && (
           <div className="space-y-6">
             <div className="bg-black border-4 border-green-500 p-4 md:p-6 rounded-xl">
-              <p className="text-green-400 font-mono text-center mb-6 text-sm md:text-base">
-                Bienvenido al programa de entrenamiento del Traductor Universal.
-                <br />
-                Selecciona una especie alienígena para practicar:
-              </p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                {ALIEN_SPECIES.map(species => (
-                  <button
-                    key={species.id}
-                    onClick={() => startEncounter(species)}
-                    disabled={isLoading}
-                    className="p-3 md:p-4 border-2 border-green-900 bg-black hover:border-green-500 transition-all text-left group"
-                    style={{ borderColor: isLoading ? undefined : `${species.color}40` }}
-                  >
-                    <div className="flex items-center gap-2 md:gap-3">
-                      <span className="text-2xl md:text-3xl">{species.avatar}</span>
-                      <div className="flex-1">
-                        <div className="font-mystic text-green-500 group-hover:text-green-400 text-sm md:text-base">
-                          {species.name}
-                        </div>
-                        <div className="text-green-700 text-[10px] md:text-xs font-mono">
-                          {species.description}
-                        </div>
-                      </div>
-                      <div className="text-[10px] md:text-xs font-mono" style={{ color: species.color }}>
-                        {'★'.repeat(species.difficulty)}
+              {!hasEnoughWords ? (
+                <div className="text-center">
+                  <div className="text-red-400 font-mystic text-lg mb-4">
+                    ⚠️ VOCABULARIO INSUFICIENTE
+                  </div>
+                  <p className="text-green-400 font-mono text-sm mb-4">
+                    Necesitas al menos 3 palabras en tu vocabulario para practicar.
+                  </p>
+                  <p className="text-green-700 font-mono text-xs">
+                    Palabras actuales: {words.length}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-green-400 font-mono text-center mb-6 text-sm md:text-base">
+                    Practica traduciendo frases de Space Quest usando tu vocabulario.
+                  </p>
+                  
+                  <div className="bg-black border-4 border-cyan-500 p-4 rounded-xl mb-4">
+                    <div className="flex items-center justify-center gap-4">
+                      <span className="text-4xl md:text-5xl">{learningLang.flag}</span>
+                      <div className="text-center">
+                        <div className="text-cyan-500 font-mystic text-lg md:text-xl">{learningLang.nativeName}</div>
+                        <div className="text-cyan-700 font-mono text-xs">Idioma de aprendizaje</div>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="bg-black border-4 border-purple-500 p-4 rounded-xl mb-6">
+                    <div className="flex items-center justify-center gap-4">
+                      <span className="text-4xl md:text-5xl">{translationLang.flag}</span>
+                      <div className="text-center">
+                        <div className="text-purple-500 font-mystic text-lg md:text-xl">{translationLang.nativeName}</div>
+                        <div className="text-purple-700 font-mono text-xs">Idioma de traducción</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-green-700 font-mono text-xs text-center mb-4">
+                    Palabras disponibles: {words.length}
+                  </div>
+
+                  <button
+                    onClick={startGame}
+                    disabled={isLoading}
+                    className="w-full p-4 border-2 border-green-500 bg-black hover:bg-green-900/20 transition-all text-center font-mystic text-green-500 text-lg"
+                  >
+                    {isLoading ? 'CARGANDO...' : 'COMENZAR PRÁCTICA'}
                   </button>
-                ))}
-              </div>
+                </>
+              )}
 
               {/* Exit button in intro phase */}
               <div className="mt-6 pt-4 border-t border-green-900">
@@ -232,23 +300,38 @@ const AlienTranslatorGame: React.FC<{ onClose: () => void }> = ({ onClose }) => 
         {/* Dialogue Phase */}
         {state.phase === 'dialogue' && state.dialogue.length > 0 && (
           <div className="space-y-4 md:space-y-6">
-            {/* Alien Speech */}
+            {/* Target Language Phrase */}
             <div className="bg-black border-4 border-cyan-500 p-4 md:p-6 rounded-xl">
               <div className="flex items-start gap-3 md:gap-4">
-                <div className="text-3xl md:text-4xl">{state.selectedSpecies?.avatar}</div>
+                <div className="text-3xl md:text-4xl">{learningLang.flag}</div>
                 <div className="flex-1">
                   <div className="text-cyan-500 font-mystic text-[10px] md:text-xs mb-2 uppercase tracking-widest">
-                    {state.selectedSpecies?.name} dice:
+                    Situación:
                   </div>
                   <p className="text-cyan-400 font-mono text-base md:text-lg tracking-wide">
-                    "{state.dialogue[state.currentTurn]?.alienText}"
+                    "{state.dialogue[state.currentTurn]?.targetText}"
                   </p>
-                  <button
-                    onClick={() => speakAlien(state.dialogue[state.currentTurn]?.alienText || '')}
-                    className="mt-2 text-cyan-700 hover:text-cyan-500 text-[10px] md:text-xs font-mono"
-                  >
-                    🔊 Escuchar pronunciación
-                  </button>
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => speakText(state.dialogue[state.currentTurn]?.targetText || '', learningLanguage)}
+                      className="text-cyan-700 hover:text-cyan-500 text-[10px] md:text-xs font-mono flex items-center gap-1"
+                    >
+                      🔊 Escuchar en {learningLang.name}
+                    </button>
+                    <button
+                      onClick={() => setShowTranslation(!showTranslation)}
+                      className="text-purple-700 hover:text-purple-500 text-[10px] md:text-xs font-mono flex items-center gap-1"
+                    >
+                      🌐 Traducción
+                    </button>
+                  </div>
+                  {showTranslation && (
+                    <div className="mt-2 p-2 border border-purple-500/30 rounded bg-purple-900/10">
+                      <span className="text-purple-400 font-mono text-sm">
+                        {translationLang.flag} {state.dialogue[state.currentTurn]?.translation}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -264,19 +347,31 @@ const AlienTranslatorGame: React.FC<{ onClose: () => void }> = ({ onClose }) => 
             {!state.feedback && (
               <div className="bg-black border-4 border-green-900 p-4 md:p-6 rounded-xl">
                 <div className="text-green-700 font-mystic text-[10px] md:text-xs mb-3 md:mb-4 uppercase tracking-widest">
-                  Selecciona la traducción correcta:
+                  ¿Qué sigue?
                 </div>
                 <div className="grid grid-cols-1 gap-2 md:gap-3">
                   {currentOptions.map((option, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => handleAnswer(option)}
-                      disabled={isLoading}
-                      className="p-3 md:p-4 border-2 border-green-900 bg-black hover:border-green-500 hover:bg-green-900/20 transition-all text-left font-mono text-green-400 disabled:opacity-50 text-sm md:text-base"
-                    >
-                      <span className="text-green-700 mr-2">[{idx + 1}]</span>
-                      {option}
-                    </button>
+                    <div key={idx} className="relative">
+                      <button
+                        onClick={() => handleAnswer(idx)}
+                        disabled={isLoading}
+                        className="w-full p-3 md:p-4 border-2 border-green-900 bg-black hover:border-green-500 hover:bg-green-900/20 transition-all text-left font-mono text-green-400 disabled:opacity-50 text-sm md:text-base"
+                      >
+                        <span className="text-green-700 mr-2">[{idx + 1}]</span>
+                        {option}
+                      </button>
+                      <div className="flex gap-2 mt-1 px-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); speakText(option, learningLanguage); }}
+                          className="text-cyan-700 hover:text-cyan-500 text-[10px] font-mono"
+                        >
+                          🔊
+                        </button>
+                        <span className="text-purple-700 text-[10px] font-mono">
+                          {translationLang.flag} {currentOptionTranslations[idx]}
+                        </span>
+                      </div>
+                    </div>
                   ))}
                 </div>
 
@@ -329,7 +424,7 @@ const AlienTranslatorGame: React.FC<{ onClose: () => void }> = ({ onClose }) => 
           <div className="bg-black border-4 border-green-500 p-6 md:p-8 rounded-xl text-center">
             <div className="text-5xl md:text-6xl mb-4">🏆</div>
             <h3 className="font-mystic text-xl md:text-2xl text-green-500 mb-4">
-              ¡ENTRENAMIENTO COMPLETADO!
+              ¡PRÁCTICA COMPLETADA!
             </h3>
             <p className="text-green-400 font-mono mb-6 text-sm md:text-base">
               Puntuación final: <span className="text-green-500 text-2xl md:text-3xl font-bold">{state.score}</span> puntos
@@ -339,7 +434,7 @@ const AlienTranslatorGame: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                 onClick={() => setState(prev => ({ ...prev, phase: 'intro', score: 0, dialogue: [] }))}
                 className="px-4 md:px-6 py-2 md:py-3 bg-green-500 text-black font-mystic hover:bg-green-400 transition-all text-sm md:text-base"
               >
-                NUEVO ENTRENAMIENTO
+                NUEVA PRÁCTICA
               </button>
               <button
                 onClick={() => { soundManager.playSFX('beep'); onClose(); }}
