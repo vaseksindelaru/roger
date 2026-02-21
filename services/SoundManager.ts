@@ -7,6 +7,9 @@ class SoundManager {
   private isMuted: boolean = false;
   private bgMusicSource: AudioBufferSourceNode | null = null;
   private bgMusicGain: GainNode | null = null;
+  private bgMusicEndedHandler: (() => void) | null = null;
+  private bgMusicPlayToken: number = 0;
+  private activeMusicSources: Set<AudioBufferSourceNode> = new Set();
 
   constructor() {
     // AudioContext is initialized on first user interaction
@@ -32,6 +35,33 @@ class SoundManager {
 
   setMuted(muted: boolean) {
     this.isMuted = muted;
+  }
+
+  private clearBackgroundMusicSource() {
+    // Stop and clear the primary background music source
+    if (this.bgMusicSource) {
+      try {
+        this.bgMusicSource.onended = null;
+        this.bgMusicSource.stop(0);
+      } catch (e) {
+        // Source may have already stopped or been garbage collected
+      }
+      this.bgMusicSource = null;
+      this.bgMusicGain = null;
+    }
+    // Stop any additional active music sources
+    if (this.activeMusicSources.size) {
+      for (const source of Array.from(this.activeMusicSources)) {
+        try {
+          source.onended = null;
+          source.stop(0);
+        } catch (e) {
+          // Source may have already stopped or been garbage collected
+        }
+      }
+      this.activeMusicSources.clear();
+    }
+    this.bgMusicEndedHandler = null;
   }
 
   private decodeBase64ToBytes(base64Data: string): Uint8Array {
@@ -137,9 +167,16 @@ class SoundManager {
   }
 
   // For generated music from Gemini
-  async playBackgroundMusic(base64Data: string) {
+  async playBackgroundMusic(
+    base64Data: string,
+    options?: {
+      loop?: boolean;
+      onEnded?: () => void;
+    }
+  ) {
     if (this.isMuted) return;
-    this.stopBackgroundMusic();
+    const playToken = ++this.bgMusicPlayToken;
+    this.clearBackgroundMusicSource();
     this.initContext();
     if (!this.audioCtx) return;
 
@@ -150,18 +187,42 @@ class SoundManager {
 
     try {
       const audioBuffer = await this.decodeGeneratedAudio(base64Data);
+      if (playToken !== this.bgMusicPlayToken) {
+        // A newer play request or an explicit stop happened while decoding.
+        return;
+      }
 
       const source = this.audioCtx.createBufferSource();
       const gain = this.audioCtx.createGain();
       
       source.buffer = audioBuffer;
-      source.loop = true;
+      source.loop = options?.loop ?? true;
       gain.gain.value = this.musicVolume * this.masterVolume;
       
       source.connect(gain);
       gain.connect(this.audioCtx.destination);
+
+      this.bgMusicEndedHandler = options?.onEnded || null;
+      this.activeMusicSources.add(source);
+      source.onended = () => {
+        this.activeMusicSources.delete(source);
+        if (this.bgMusicSource === source) {
+          this.bgMusicSource = null;
+          this.bgMusicGain = null;
+        }
+        if (this.bgMusicEndedHandler) {
+          this.bgMusicEndedHandler();
+        }
+      };
       
       source.start(0);
+      if (playToken !== this.bgMusicPlayToken) {
+        try {
+          source.onended = null;
+          source.stop();
+        } catch (e) {}
+        return;
+      }
       this.bgMusicSource = source;
       this.bgMusicGain = gain;
       return source;
@@ -172,12 +233,30 @@ class SoundManager {
   }
 
   stopBackgroundMusic() {
-    if (this.bgMusicSource) {
+    this.bgMusicPlayToken += 1;
+    this.clearBackgroundMusicSource();
+  }
+
+  stopAllAudio() {
+    this.stopBackgroundMusic();
+
+    if (typeof document !== 'undefined') {
+      const mediaElements = document.querySelectorAll('audio,video');
+      mediaElements.forEach((el) => {
+        const media = el as HTMLMediaElement;
+        try {
+          media.pause();
+          if (!Number.isNaN(media.duration)) {
+            media.currentTime = 0;
+          }
+        } catch (e) {}
+      });
+    }
+
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {
-        this.bgMusicSource.stop();
+        window.speechSynthesis.cancel();
       } catch (e) {}
-      this.bgMusicSource = null;
-      this.bgMusicGain = null;
     }
   }
 
@@ -201,6 +280,11 @@ class SoundManager {
       
       source.connect(gain);
       gain.connect(this.audioCtx.destination);
+
+      this.activeMusicSources.add(source);
+      source.onended = () => {
+        this.activeMusicSources.delete(source);
+      };
       
       source.start(0);
       return source;

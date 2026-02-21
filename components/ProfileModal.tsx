@@ -42,6 +42,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, words, onClose, onUpd
   const [playingTrackId, setPlayingTrackId] = useState<number | null>(null);
   const [lyricsNow, setLyricsNow] = useState('');
   const chantTimeoutRef = useRef<number | null>(null);
+  const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const stations = ['Monolith Burger Jazz', 'Xenon City Beats', 'Estraana Ambient', 'Galaxy Gallop Rock', 'Vohaul Dark Signal'];
@@ -65,19 +66,41 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, words, onClose, onUpd
 
   useEffect(() => {
     return () => {
+      // Cleanup on unmount: stop all audio and clear timeouts
       if (chantTimeoutRef.current) {
         window.clearTimeout(chantTimeoutRef.current);
         chantTimeoutRef.current = null;
       }
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      currentSourceRef.current = null;
+      stopChant();
+      soundManager.stopAllAudio();
     };
   }, []);
 
-  const playRadioAudio = async (audioData: string) => {
-    const source = await soundManager.playBackgroundMusic(audioData);
+  const playRadioAudio = async (audioData: string, options?: { loop?: boolean; clearTrackOnEnded?: boolean }) => {
+    // Stop any currently playing audio first to prevent overlapping
+    soundManager.stopBackgroundMusic();
+    currentSourceRef.current = null;
+    setCurrentSource(null);
+    
+    const source = await soundManager.playBackgroundMusic(audioData, {
+      loop: options?.loop ?? true,
+      onEnded: () => {
+        // Only clear if this source is still the current one
+        if (currentSourceRef.current === source) {
+          currentSourceRef.current = null;
+          setIsPlaying(false);
+          setCurrentSource(null);
+        }
+        if (options?.clearTrackOnEnded) {
+          setPlayingTrackId(null);
+          stopChant();
+          setLyricsNow('');
+        }
+      },
+    });
     if (source) {
+      currentSourceRef.current = source;
       setCurrentSource(source);
       setIsPlaying(true);
     }
@@ -373,11 +396,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, words, onClose, onUpd
   };
 
   const handleStationChange = (station: string) => {
-    soundManager.stopBackgroundMusic();
-    stopChant();
-    setIsPlaying(false);
-    setCurrentSource(null);
-    setLyricsNow('');
+    stopPreview();
     setSelectedStation(station);
     setPreviewRadio(null); // Clear preview when changing station
     setRadioError('');
@@ -461,14 +480,20 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, words, onClose, onUpd
   };
 
   const stopPreview = () => {
-    soundManager.stopBackgroundMusic();
+    // Clear the ref first to prevent any pending callbacks from interfering
+    currentSourceRef.current = null;
+    setCurrentSource(null);
+    
+    // Stop all audio through the sound manager (this properly stops all tracked sources)
+    soundManager.stopAllAudio();
+    
+    // Stop any speech synthesis
     stopChant();
+    
+    // Update UI state
     setIsPlaying(false);
     setPlayingTrackId(null);
-    setCurrentSource(null);
     setLyricsNow('');
-    // If we have a saved radio, resume it? Or just leave it stopped.
-    // For now, let's just stop.
   };
 
   const handleSaveChannel = async () => {
@@ -535,7 +560,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, words, onClose, onUpd
       if (response.warning) {
         setChannelWarning(`${response.warning} Canción creada en modo local con letra sincronizada.`);
       }
-      await playRadioAudio(response.track.audio_base64);
+      await playRadioAudio(response.track.audio_base64, { loop: false, clearTrackOnEnded: true });
       setPlayingTrackId(response.track.id);
       if (response.track.words_script) {
         chantWordsScript(response.track.words_script);
@@ -551,7 +576,10 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, words, onClose, onUpd
   };
 
   const handlePlayTrack = async (track: RadioTrack) => {
-    await playRadioAudio(track.audio_base64);
+    // Stop any currently playing track first
+    stopPreview();
+    
+    await playRadioAudio(track.audio_base64, { loop: false, clearTrackOnEnded: true });
     setPlayingTrackId(track.id);
     if (track.words_script) {
       chantWordsScript(track.words_script);
@@ -564,9 +592,8 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, words, onClose, onUpd
     try {
       await deleteRadioTrack(trackId);
       setChannelTracks(prev => prev.filter(t => t.id !== trackId));
-      if (playingTrackId === trackId) {
-        stopPreview();
-      }
+      // Always stop current playback when deleting a track to avoid lingering audio.
+      stopPreview();
       soundManager.playSFX('beep');
     } catch (err) {
       console.error(err);
@@ -593,9 +620,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, words, onClose, onUpd
           setRadioAudio(finalAudio);
           await playRadioAudio(finalAudio);
         } else {
-          soundManager.stopBackgroundMusic();
-          setIsPlaying(false);
-          setCurrentSource(null);
+          stopPreview();
         }
         soundManager.playSFX('success');
         onClose();
@@ -616,7 +641,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, words, onClose, onUpd
       }`}>
         <div className="p-6 border-b-4 border-green-900 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button onClick={() => { soundManager.playSFX('beep'); onClose(); }} className="text-green-900 hover:text-green-400 font-mystic">← ATRÁS</button>
+            <button onClick={() => { stopPreview(); soundManager.playSFX('beep'); onClose(); }} className="text-green-900 hover:text-green-400 font-mystic">← ATRÁS</button>
             <h2 className="text-2xl font-mystic text-green-400 flicker">PERFIL DE CADETE</h2>
           </div>
           <div className="text-[10px] font-mono text-green-900 uppercase">ID: {user.username}</div>
@@ -686,11 +711,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, words, onClose, onUpd
                 </button>
                 <button
                   onClick={() => {
-                    soundManager.stopBackgroundMusic();
-                    stopChant();
-                    setIsPlaying(false);
-                    setCurrentSource(null);
-                    setLyricsNow('');
+                    stopPreview();
                     setPreviewRadio(null);
                     setRadioAudio('');
                     soundManager.playSFX('beep');
@@ -830,7 +851,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, words, onClose, onUpd
 
         <div className="p-8 border-t-4 border-green-900 flex gap-4">
           <button
-            onClick={() => { soundManager.playSFX('beep'); onClose(); }}
+            onClick={() => { stopPreview(); soundManager.playSFX('beep'); onClose(); }}
             className="flex-1 py-4 border-2 border-green-900 text-green-900 font-mystic text-xs hover:text-green-400"
           >
             CANCELAR
