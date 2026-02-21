@@ -73,18 +73,18 @@ const StarConTerminal: React.FC<StarConTerminalProps> = ({ word, language, onClo
             <p className="text-green-900 mt-8 font-mono text-xs tracking-widest uppercase flicker">Haz clic para iniciar escaneo</p>
           </div>
         ) : (
-          <div className="animate-in zoom-in-95 duration-300 w-full">
-            <div className="bg-black border-4 border-green-500 p-10 shadow-[0_0_50px_rgba(34,197,94,0.2)] relative overflow-hidden">
+          <div className="animate-in zoom-in-95 duration-300 w-full max-w-lg px-4">
+            <div className="bg-black border-4 border-green-500 p-4 md:p-6 lg:p-10 shadow-[0_0_50px_rgba(34,197,94,0.2)] relative overflow-hidden max-h-[85vh] overflow-y-auto">
               <div className="absolute top-0 left-0 w-full h-1 bg-green-500"></div>
               
-              <div className="text-center space-y-8">
-                <div className="inline-block p-4 bg-green-500/10 border-2 border-green-500 mb-4">
-                  <span className="text-4xl">🛰️</span>
+              <div className="text-center space-y-4 md:space-y-6">
+                <div className="inline-block p-3 md:p-4 bg-green-500/10 border-2 border-green-500 mb-2">
+                  <span className="text-2xl md:text-4xl">🛰️</span>
                 </div>
                 
-                <div className="space-y-4">
-                  <h4 className="font-mystic text-green-500 text-[10px] tracking-[0.2em] uppercase">Informe de Escaneo</h4>
-                  <p className="text-xl font-mono text-green-400 leading-relaxed uppercase">
+                <div className="space-y-2 md:space-y-4">
+                  <h4 className="font-mystic text-green-500 text-[8px] md:text-[10px] tracking-[0.2em] uppercase">Informe de Escaneo</h4>
+                  <p className="text-sm md:text-xl font-mono text-green-400 leading-relaxed uppercase break-words hyphens-auto">
                     "{data?.report}"
                   </p>
                 </div>
@@ -92,30 +92,30 @@ const StarConTerminal: React.FC<StarConTerminalProps> = ({ word, language, onClo
                 <div className="h-1 bg-green-900 w-24 mx-auto"></div>
 
                 <div className="space-y-2">
-                  <h4 className="font-mystic text-green-900 text-[8px] tracking-[0.1em] uppercase text-center">Análisis de Datos</h4>
-                  <p className="text-green-600 text-sm font-mono leading-relaxed uppercase">
+                  <h4 className="font-mystic text-green-900 text-[7px] md:text-[8px] tracking-[0.1em] uppercase text-center">Análisis de Datos</h4>
+                  <p className="text-green-600 text-xs md:text-sm font-mono leading-relaxed uppercase break-words hyphens-auto">
                     {data?.interpretation}
                   </p>
                 </div>
 
-                <div className="pt-8 flex flex-col gap-4">
+                <div className="pt-4 md:pt-6 flex flex-col gap-2 md:gap-3">
                   <button 
                     onClick={() => { soundManager.playSFX('click'); onRevealLetter(); onClose(); }}
-                    className="w-full bg-green-500 text-black font-black py-4 hover:bg-green-400 transition-all font-mystic text-[10px]"
+                    className="w-full bg-green-500 text-black font-black py-3 md:py-4 hover:bg-green-400 transition-all font-mystic text-[9px] md:text-[10px]"
                   >
                     REVELAR BYTE (LETRA)
                   </button>
                   <button 
                     onClick={() => { soundManager.playSFX('error'); onRevealFullWord(); }}
-                    className="w-full bg-red-900 text-red-100 border-2 border-red-500 font-black py-4 hover:bg-red-800 transition-all font-mystic text-[10px]"
+                    className="w-full bg-red-900 text-red-100 border-2 border-red-500 font-black py-3 md:py-4 hover:bg-red-800 transition-all font-mystic text-[9px] md:text-[10px]"
                   >
                     SOBRECARGA (PALABRA)
                   </button>
                   <button 
                     onClick={() => { soundManager.playSFX('beep'); onClose(); }}
-                    className="w-full bg-transparent text-green-900 font-bold py-4 hover:text-green-500 transition-all font-mystic text-[8px]"
+                    className="w-full bg-transparent text-green-500 border-2 border-green-900 font-bold py-3 md:py-4 hover:border-green-500 transition-all font-mystic text-[9px] md:text-[10px]"
                   >
-                    ABORTAR
+                    VOLVER AL SECTOR
                   </button>
                 </div>
               </div>
