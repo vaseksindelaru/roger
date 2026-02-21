@@ -178,8 +178,8 @@ export const parseAudioToWords = async (base64Audio: string): Promise<{ word: st
 };
 
 export const generateStarConReport = async (word: string, language: string): Promise<{ report: string, interpretation: string }> => {
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.0-flash',
+  const response = await generateContentWithTextFallback((model) => ({
+    model,
     contents: `Eres la Computadora Central de StarCon. Genera un informe de escaneo táctico para el término "${word}" en el idioma ${language}. 
     
     REQUISITOS:
@@ -197,7 +197,7 @@ export const generateStarConReport = async (word: string, language: string): Pro
         required: ["report", "interpretation"]
       }
     }
-  });
+  }));
   return JSON.parse(response.text || "{}");
 };
 

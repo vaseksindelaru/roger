@@ -15,17 +15,24 @@ const StarConTerminal: React.FC<StarConTerminalProps> = ({ word, language, onClo
   const [isFlipped, setIsFlipped] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [data, setData] = useState<{report: string, interpretation: string} | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleScan = async () => {
     setIsLoading(true);
+    setError(null);
     soundManager.playSFX('scan');
     try {
       const report = await generateStarConReport(word, language);
-      setData(report);
-      setIsFlipped(true);
-      soundManager.playSFX('success');
-    } catch (err) {
+      if (report && report.report) {
+        setData(report);
+        setIsFlipped(true);
+        soundManager.playSFX('success');
+      } else {
+        throw new Error("No se recibieron datos del escaneo.");
+      }
+    } catch (err: any) {
       console.error(err);
+      setError(err.message || "Error de conexión con la Computadora Central.");
       soundManager.playSFX('error');
     } finally {
       setIsLoading(false);
@@ -52,6 +59,17 @@ const StarConTerminal: React.FC<StarConTerminalProps> = ({ word, language, onClo
                 <div className="font-mystic text-green-900 text-[10px] tracking-[0.1em] uppercase text-center">Insertar Disco de Datos</div>
               </div>
             </div>
+            {error && (
+              <div className="mt-6 p-4 border-2 border-red-500 bg-red-900/20 text-red-400 font-mono text-xs uppercase">
+                ⚠️ {error}
+                <button 
+                  onClick={handleScan}
+                  className="block mt-2 text-green-400 hover:text-green-300 underline"
+                >
+                  Reintentar
+                </button>
+              </div>
+            )}
             <p className="text-green-900 mt-8 font-mono text-xs tracking-widest uppercase flicker">Haz clic para iniciar escaneo</p>
           </div>
         ) : (
