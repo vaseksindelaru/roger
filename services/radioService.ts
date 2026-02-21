@@ -5,6 +5,47 @@ export interface RadioChannelPayload {
   tracks: RadioTrack[];
 }
 
+export const GALACTIC_PRESET_STATIONS = [
+  'Monolith Burger Jazz',
+  'Monolith Bar Classic (SQ4)',
+  'Xenon City Beats',
+  'Vohaul Dark Signal',
+  'Galaxy Gallop Rock',
+  'Estraana Ambient',
+  'Sariens Patrol Alarm',
+  'Space Janitor Funk',
+];
+
+const normalizeStationName = (value: string) => value.trim().slice(0, 120);
+
+export const mergeStationCatalog = (stations: string[]): string[] => {
+  const seen = new Set<string>();
+  const merged: string[] = [];
+  for (const raw of stations) {
+    const normalized = normalizeStationName(raw || '');
+    if (!normalized) continue;
+    if (seen.has(normalized.toLowerCase())) continue;
+    seen.add(normalized.toLowerCase());
+    merged.push(normalized);
+  }
+  return merged;
+};
+
+export const extractStationCatalog = (
+  payload?: Partial<RadioChannelPayload> | null,
+  extraStations: string[] = []
+): string[] => {
+  const trackStyles = (payload?.tracks || [])
+    .map((track) => track?.style || '')
+    .filter(Boolean);
+  return mergeStationCatalog([
+    ...GALACTIC_PRESET_STATIONS,
+    ...(payload?.channel?.style ? [payload.channel.style] : []),
+    ...trackStyles,
+    ...extraStations,
+  ]);
+};
+
 export const fetchRadioChannel = async (): Promise<RadioChannelPayload> => {
   const response = await fetch('/api/radio/channel');
   const data = await response.json();

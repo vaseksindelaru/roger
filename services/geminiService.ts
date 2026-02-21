@@ -445,3 +445,58 @@ Return only the image.`;
 
   throw new Error((lastError as any)?.message || "No se pudo generar el avatar.");
 }
+
+export async function generateSectorImage(sectorName: string, description?: string): Promise<string> {
+  if (!GEMINI_KEY) {
+    throw new Error("Falta configurar GEMINI_API_KEY/GOOGLE_API_KEY para generar imagen de sector.");
+  }
+  const localAi = new GoogleGenAI({ apiKey: GEMINI_KEY });
+  
+  const prompt = `You are Nano Banana 2, a specialized pixel-art model for Space Quest style graphics.
+Create a sector location image for the space adventure game StarCon-OS.
+
+Sector Name: ${sectorName}
+${description ? `Description: ${description}` : ''}
+
+Hard requirements:
+- Final output must be ONLY one PNG image at exactly 256x256 pixels.
+- Art style: authentic early 1990s VGA adventure game location art (Space Quest 4 inspired).
+- The image should represent a space location: nebula, asteroid field, space station, alien planet, or cosmic phenomenon.
+- Use a limited retro EGA/VGA-like palette with vivid colors typical of Sierra On-Line games.
+- Use simple dithering for shading and atmospheric effects. Do not use smooth gradients.
+- Include pixelated stars, cosmic dust, or other space elements in the background.
+- The scene should look like a view from a spaceship window or a planetary surface.
+- Make it atmospheric and mysterious, fitting the Space Quest universe.
+
+Strict negatives:
+- No photorealism, no modern 3D render look.
+- No text, watermark, labels, UI elements, frames, or explanations.
+- No characters or faces in the scene.
+- Do not return JSON or markdown.
+Return only the image.`;
+
+  let lastError: unknown = null;
+  for (const model of AVATAR_MODELS) {
+    try {
+      const request: any = {
+        model,
+        contents: [{ text: prompt }],
+      };
+
+      if (model.includes('image')) {
+        request.config = { responseModalities: [Modality.IMAGE] };
+      }
+
+      const response = await localAi.models.generateContent(request);
+      const image = extractInlineImage(response);
+      if (image) return image;
+    } catch (error) {
+      lastError = error;
+      if (!shouldTryNextModel(error)) {
+        throw error;
+      }
+    }
+  }
+
+  throw new Error((lastError as any)?.message || "No se pudo generar la imagen del sector.");
+}

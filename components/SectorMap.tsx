@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { soundManager } from '../services/SoundManager';
 
@@ -9,6 +9,7 @@ interface Sector {
   x: number;
   y: number;
   difficulty: number;
+  image?: string;
 }
 
 interface SectorMapProps {
@@ -26,8 +27,20 @@ const SECTORS: Sector[] = [
   { id: 'S6', name: 'Centro del Universo Lingüístico', x: 700, y: 250, difficulty: 5 },
 ];
 
+// Pre-generated pixel art images for sectors (base64 PNGs)
+const SECTOR_IMAGES: Record<string, string> = {
+  'S1': 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="#0a0a1a" width="64" height="64"/><circle cx="32" cy="32" r="20" fill="#1a3a5a" opacity="0.5"/><circle cx="25" cy="28" r="8" fill="#2a5a8a" opacity="0.3"/><circle cx="40" cy="35" r="6" fill="#3a7aba" opacity="0.2"/><circle cx="15" cy="15" r="1" fill="#fff"/><circle cx="50" cy="20" r="1" fill="#fff"/><circle cx="45" cy="50" r="1" fill="#fff"/><circle cx="10" cy="45" r="1" fill="#fff"/></svg>`),
+  'S2': 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="#0a0a1a" width="64" height="64"/><polygon points="10,30 15,20 20,30" fill="#4a4a4a"/><polygon points="30,40 38,25 46,40" fill="#5a5a5a"/><polygon points="50,35 55,28 60,35" fill="#3a3a3a"/><circle cx="15" cy="15" r="1" fill="#fff"/><circle cx="45" cy="10" r="1" fill="#fff"/><circle cx="55" cy="55" r="1" fill="#fff"/></svg>`),
+  'S3': 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="#0a0a1a" width="64" height="64"/><circle cx="32" cy="32" r="15" fill="#000"/><circle cx="32" cy="32" r="20" fill="none" stroke="#ff6600" stroke-width="2" opacity="0.5"/><circle cx="32" cy="32" r="25" fill="none" stroke="#ff9900" stroke-width="1" opacity="0.3"/><circle cx="10" cy="10" r="1" fill="#fff"/><circle cx="55" cy="15" r="1" fill="#fff"/><circle cx="50" cy="55" r="1" fill="#fff"/></svg>`),
+  'S4': 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="#0a0a1a" width="64" height="64"/><ellipse cx="32" cy="40" rx="25" ry="15" fill="#2a4a2a"/><ellipse cx="32" cy="38" rx="20" ry="12" fill="#3a6a3a"/><circle cx="25" cy="35" r="3" fill="#4a8a4a"/><circle cx="40" cy="38" r="2" fill="#5aba5a"/><circle cx="15" cy="12" r="1" fill="#fff"/><circle cx="50" cy="18" r="1" fill="#fff"/></svg>`),
+  'S5': 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="#0a0a1a" width="64" height="64"/><ellipse cx="32" cy="32" rx="28" ry="10" fill="#1a1a3a" transform="rotate(30 32 32)"/><ellipse cx="32" cy="32" rx="20" ry="6" fill="#2a2a5a" transform="rotate(30 32 32)"/><circle cx="20" cy="20" r="1" fill="#fff"/><circle cx="45" cy="15" r="1" fill="#fff"/><circle cx="55" cy="45" r="1" fill="#fff"/><circle cx="10" cy="50" r="1" fill="#fff"/></svg>`),
+  'S6': 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="#0a0a1a" width="64" height="64"/><circle cx="32" cy="32" r="12" fill="#ffcc00"/><circle cx="32" cy="32" r="18" fill="none" stroke="#ff9900" stroke-width="2" opacity="0.5"/><circle cx="32" cy="32" r="24" fill="none" stroke="#ff6600" stroke-width="1" opacity="0.3"/><circle cx="15" cy="15" r="1" fill="#fff"/><circle cx="50" cy="12" r="1" fill="#fff"/><circle cx="55" cy="50" r="1" fill="#fff"/><circle cx="10" cy="55" r="1" fill="#fff"/></svg>`),
+};
+
 const SectorMap: React.FC<SectorMapProps> = ({ completedSectors, onSelectSector, isDarkMode }) => {
   const svgRef = useRef<SVGSVGElement>(null);
+  const [selectedSector, setSelectedSector] = useState<Sector | null>(null);
+  const [hoveredSector, setHoveredSector] = useState<Sector | null>(null);
 
   useEffect(() => {
     if (!svgRef.current) return;
@@ -90,35 +103,35 @@ const SectorMap: React.FC<SectorMapProps> = ({ completedSectors, onSelectSector,
       .style('cursor', 'pointer')
       .on('click', (event, d) => {
         soundManager.playSFX('click');
+        setSelectedSector(d);
         onSelectSector(d);
       })
-      .on('mouseover', function() {
-        d3.select(this).select('circle').transition().attr('r', 15);
+      .on('mouseover', function(event, d) {
+        d3.select(this).select('circle').transition().attr('r', 18);
         d3.select(this).select('text').transition().attr('opacity', 1);
+        setHoveredSector(d);
       })
       .on('mouseout', function() {
-        d3.select(this).select('circle').transition().attr('r', 10);
+        d3.select(this).select('circle').transition().attr('r', 12);
         d3.select(this).select('text').transition().attr('opacity', 0.7);
+        setHoveredSector(null);
       });
 
     nodes.append('circle')
-      .attr('r', 10)
+      .attr('r', 12)
       .attr('fill', d => completedSectors.includes(d.id) ? '#22c55e' : '#000')
       .attr('stroke', '#22c55e')
       .attr('stroke-width', 2)
       .attr('class', d => completedSectors.includes(d.id) ? 'flicker' : '');
 
     nodes.append('text')
-      .attr('dy', 25)
+      .attr('dy', 28)
       .attr('text-anchor', 'middle')
       .attr('fill', '#22c55e')
       .attr('font-family', 'mystic')
       .attr('font-size', '10px')
       .attr('opacity', 0.7)
       .text(d => d.name.toUpperCase());
-
-    // Pulsing effect for current mission?
-    // ...
 
   }, [completedSectors, isDarkMode]);
 
@@ -127,6 +140,19 @@ const SectorMap: React.FC<SectorMapProps> = ({ completedSectors, onSelectSector,
       <div className="absolute top-4 left-4 z-10">
         <h3 className="text-[10px] font-mystic text-green-500 uppercase tracking-widest">Mapa Estelar de Sectores</h3>
       </div>
+      
+      {/* Sector Image Preview */}
+      {hoveredSector && (
+        <div className="absolute top-4 right-4 z-10 border-2 border-cyan-500 bg-black/90 p-2 rounded">
+          <img 
+            src={SECTOR_IMAGES[hoveredSector.id] || SECTOR_IMAGES['S1']} 
+            alt={hoveredSector.name}
+            className="w-16 h-16 pixelated"
+          />
+          <div className="text-[8px] font-mono text-cyan-300 uppercase mt-1 text-center">{hoveredSector.name}</div>
+        </div>
+      )}
+      
       <svg 
         ref={svgRef} 
         viewBox="0 0 800 450" 
