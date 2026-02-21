@@ -151,24 +151,6 @@ const AlienTranslatorGame: React.FC<{ onClose: () => void }> = ({ onClose }) => 
       <div className="absolute inset-0 stars-bg"></div>
       
       <div className="relative w-full max-w-2xl p-4 md:p-6 my-8 md:my-0">
-        {/* Close Button */}
-        <button 
-          onClick={() => { soundManager.playSFX('beep'); onClose(); }} 
-          className="absolute top-0 right-0 md:-top-10 md:right-4 text-green-500/50 hover:text-green-500 font-mystic text-xl z-10 bg-black/50 md:bg-transparent px-2 py-1 rounded"
-        >
-          ✕ CERRAR
-        </button>
-
-        {/* Back to Menu Button (only during dialogue) */}
-        {state.phase === 'dialogue' && (
-          <button 
-            onClick={goBackToMenu}
-            className="absolute top-0 left-0 md:-top-10 md:left-4 text-purple-500/50 hover:text-purple-500 font-mystic text-sm z-10 bg-black/50 md:bg-transparent px-2 py-1 rounded"
-          >
-            ← MENÚ
-          </button>
-        )}
-
         {/* Header */}
         <div className="text-center mb-6 md:mb-8">
           <h2 className="font-mystic text-xl md:text-3xl text-green-500 flicker tracking-wider">
@@ -200,38 +182,48 @@ const AlienTranslatorGame: React.FC<{ onClose: () => void }> = ({ onClose }) => 
         {/* Intro Phase */}
         {state.phase === 'intro' && (
           <div className="space-y-6">
-            <div className="bg-black border-4 border-green-500 p-6 rounded-xl">
-              <p className="text-green-400 font-mono text-center mb-6">
+            <div className="bg-black border-4 border-green-500 p-4 md:p-6 rounded-xl">
+              <p className="text-green-400 font-mono text-center mb-6 text-sm md:text-base">
                 Bienvenido al programa de entrenamiento del Traductor Universal.
                 <br />
                 Selecciona una especie alienígena para practicar:
               </p>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                 {ALIEN_SPECIES.map(species => (
                   <button
                     key={species.id}
                     onClick={() => startEncounter(species)}
                     disabled={isLoading}
-                    className="p-4 border-2 border-green-900 bg-black hover:border-green-500 transition-all text-left group"
+                    className="p-3 md:p-4 border-2 border-green-900 bg-black hover:border-green-500 transition-all text-left group"
                     style={{ borderColor: isLoading ? undefined : `${species.color}40` }}
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="text-3xl">{species.avatar}</span>
+                    <div className="flex items-center gap-2 md:gap-3">
+                      <span className="text-2xl md:text-3xl">{species.avatar}</span>
                       <div className="flex-1">
-                        <div className="font-mystic text-green-500 group-hover:text-green-400">
+                        <div className="font-mystic text-green-500 group-hover:text-green-400 text-sm md:text-base">
                           {species.name}
                         </div>
-                        <div className="text-green-700 text-xs font-mono">
+                        <div className="text-green-700 text-[10px] md:text-xs font-mono">
                           {species.description}
                         </div>
                       </div>
-                      <div className="text-xs font-mono" style={{ color: species.color }}>
+                      <div className="text-[10px] md:text-xs font-mono" style={{ color: species.color }}>
                         {'★'.repeat(species.difficulty)}
                       </div>
                     </div>
                   </button>
                 ))}
+              </div>
+
+              {/* Exit button in intro phase */}
+              <div className="mt-6 pt-4 border-t border-green-900">
+                <button
+                  onClick={() => { soundManager.playSFX('beep'); onClose(); }}
+                  className="w-full p-3 border-2 border-red-900 bg-black hover:border-red-500 hover:bg-red-900/20 transition-all text-center font-mystic text-red-400 text-sm"
+                >
+                  ✕ SALIR DEL JUEGO
+                </button>
               </div>
             </div>
           </div>
@@ -239,21 +231,21 @@ const AlienTranslatorGame: React.FC<{ onClose: () => void }> = ({ onClose }) => 
 
         {/* Dialogue Phase */}
         {state.phase === 'dialogue' && state.dialogue.length > 0 && (
-          <div className="space-y-6">
+          <div className="space-y-4 md:space-y-6">
             {/* Alien Speech */}
-            <div className="bg-black border-4 border-cyan-500 p-6 rounded-xl">
-              <div className="flex items-start gap-4">
-                <div className="text-4xl">{state.selectedSpecies?.avatar}</div>
+            <div className="bg-black border-4 border-cyan-500 p-4 md:p-6 rounded-xl">
+              <div className="flex items-start gap-3 md:gap-4">
+                <div className="text-3xl md:text-4xl">{state.selectedSpecies?.avatar}</div>
                 <div className="flex-1">
-                  <div className="text-cyan-500 font-mystic text-xs mb-2 uppercase tracking-widest">
+                  <div className="text-cyan-500 font-mystic text-[10px] md:text-xs mb-2 uppercase tracking-widest">
                     {state.selectedSpecies?.name} dice:
                   </div>
-                  <p className="text-cyan-400 font-mono text-lg tracking-wide">
+                  <p className="text-cyan-400 font-mono text-base md:text-lg tracking-wide">
                     "{state.dialogue[state.currentTurn]?.alienText}"
                   </p>
                   <button
                     onClick={() => speakAlien(state.dialogue[state.currentTurn]?.alienText || '')}
-                    className="mt-2 text-cyan-700 hover:text-cyan-500 text-xs font-mono"
+                    className="mt-2 text-cyan-700 hover:text-cyan-500 text-[10px] md:text-xs font-mono"
                   >
                     🔊 Escuchar pronunciación
                   </button>
@@ -263,35 +255,69 @@ const AlienTranslatorGame: React.FC<{ onClose: () => void }> = ({ onClose }) => 
 
             {/* Feedback */}
             {state.feedback && (
-              <div className={`p-4 border-2 rounded ${state.isCorrect ? 'border-green-500 bg-green-900/20 text-green-400' : 'border-red-500 bg-red-900/20 text-red-400'}`}>
+              <div className={`p-3 md:p-4 border-2 rounded text-sm md:text-base ${state.isCorrect ? 'border-green-500 bg-green-900/20 text-green-400' : 'border-red-500 bg-red-900/20 text-red-400'}`}>
                 {state.feedback}
               </div>
             )}
 
             {/* Answer Options */}
             {!state.feedback && (
-              <div className="bg-black border-4 border-green-900 p-6 rounded-xl">
-                <div className="text-green-700 font-mystic text-xs mb-4 uppercase tracking-widest">
+              <div className="bg-black border-4 border-green-900 p-4 md:p-6 rounded-xl">
+                <div className="text-green-700 font-mystic text-[10px] md:text-xs mb-3 md:mb-4 uppercase tracking-widest">
                   Selecciona la traducción correcta:
                 </div>
-                <div className="grid grid-cols-1 gap-3">
+                <div className="grid grid-cols-1 gap-2 md:gap-3">
                   {currentOptions.map((option, idx) => (
                     <button
                       key={idx}
                       onClick={() => handleAnswer(option)}
                       disabled={isLoading}
-                      className="p-4 border-2 border-green-900 bg-black hover:border-green-500 hover:bg-green-900/20 transition-all text-left font-mono text-green-400 disabled:opacity-50"
+                      className="p-3 md:p-4 border-2 border-green-900 bg-black hover:border-green-500 hover:bg-green-900/20 transition-all text-left font-mono text-green-400 disabled:opacity-50 text-sm md:text-base"
                     >
                       <span className="text-green-700 mr-2">[{idx + 1}]</span>
                       {option}
                     </button>
                   ))}
                 </div>
+
+                {/* Navigation Buttons inside answer options */}
+                <div className="mt-4 md:mt-6 pt-4 border-t border-green-900 grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => { soundManager.playSFX('beep'); onClose(); }}
+                    className="p-2 md:p-3 border-2 border-red-900 bg-black hover:border-red-500 hover:bg-red-900/20 transition-all text-center font-mystic text-red-400 text-xs md:text-sm"
+                  >
+                    ✕ MENÚ INICIO
+                  </button>
+                  <button
+                    onClick={goBackToMenu}
+                    className="p-2 md:p-3 border-2 border-purple-900 bg-black hover:border-purple-500 hover:bg-purple-900/20 transition-all text-center font-mystic text-purple-400 text-xs md:text-sm"
+                  >
+                    ← MENÚ JUEGO
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Navigation Buttons during feedback */}
+            {state.feedback && (
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => { soundManager.playSFX('beep'); onClose(); }}
+                  className="p-2 md:p-3 border-2 border-red-900 bg-black hover:border-red-500 hover:bg-red-900/20 transition-all text-center font-mystic text-red-400 text-xs md:text-sm"
+                >
+                  ✕ MENÚ INICIO
+                </button>
+                <button
+                  onClick={goBackToMenu}
+                  className="p-2 md:p-3 border-2 border-purple-900 bg-black hover:border-purple-500 hover:bg-purple-900/20 transition-all text-center font-mystic text-purple-400 text-xs md:text-sm"
+                >
+                  ← MENÚ JUEGO
+                </button>
               </div>
             )}
 
             {isLoading && (
-              <div className="text-center text-green-500 font-mystic animate-pulse">
+              <div className="text-center text-green-500 font-mystic animate-pulse text-sm md:text-base">
                 PROCESANDO TRADUCCIÓN...
               </div>
             )}
@@ -300,24 +326,24 @@ const AlienTranslatorGame: React.FC<{ onClose: () => void }> = ({ onClose }) => 
 
         {/* Result Phase */}
         {state.phase === 'result' && (
-          <div className="bg-black border-4 border-green-500 p-8 rounded-xl text-center">
-            <div className="text-6xl mb-4">🏆</div>
-            <h3 className="font-mystic text-2xl text-green-500 mb-4">
+          <div className="bg-black border-4 border-green-500 p-6 md:p-8 rounded-xl text-center">
+            <div className="text-5xl md:text-6xl mb-4">🏆</div>
+            <h3 className="font-mystic text-xl md:text-2xl text-green-500 mb-4">
               ¡ENTRENAMIENTO COMPLETADO!
             </h3>
-            <p className="text-green-400 font-mono mb-6">
-              Puntuación final: <span className="text-green-500 text-3xl font-bold">{state.score}</span> puntos
+            <p className="text-green-400 font-mono mb-6 text-sm md:text-base">
+              Puntuación final: <span className="text-green-500 text-2xl md:text-3xl font-bold">{state.score}</span> puntos
             </p>
-            <div className="flex gap-4 justify-center">
+            <div className="flex flex-col md:flex-row gap-3 md:gap-4 justify-center">
               <button
                 onClick={() => setState(prev => ({ ...prev, phase: 'intro', score: 0, dialogue: [] }))}
-                className="px-6 py-3 bg-green-500 text-black font-mystic hover:bg-green-400 transition-all"
+                className="px-4 md:px-6 py-2 md:py-3 bg-green-500 text-black font-mystic hover:bg-green-400 transition-all text-sm md:text-base"
               >
                 NUEVO ENTRENAMIENTO
               </button>
               <button
                 onClick={() => { soundManager.playSFX('beep'); onClose(); }}
-                className="px-6 py-3 border-2 border-green-500 text-green-500 font-mystic hover:bg-green-900/20 transition-all"
+                className="px-4 md:px-6 py-2 md:py-3 border-2 border-green-500 text-green-500 font-mystic hover:bg-green-900/20 transition-all text-sm md:text-base"
               >
                 SALIR
               </button>
