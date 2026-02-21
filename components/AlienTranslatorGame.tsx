@@ -1,8 +1,42 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { generateVocabularyDialogue } from '../services/geminiService';
 import { soundManager } from '../services/SoundManager';
 import { WordItem } from '../types';
+
+// Web Speech Recognition types
+interface SpeechRecognitionEvent extends Event {
+  resultIndex: number;
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+  message: string;
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+}
+
+interface SpeechRecognitionConstructor {
+  new (): SpeechRecognition;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition: SpeechRecognitionConstructor;
+    webkitSpeechRecognition: SpeechRecognitionConstructor;
+  }
+}
 
 interface LanguageData {
   id: string;
@@ -54,6 +88,12 @@ const AlienTranslatorGame: React.FC<{
   const [currentOptionTranslations, setCurrentOptionTranslations] = useState<string[]>([]);
   const [correctAnswerIndex, setCorrectAnswerIndex] = useState<number>(0);
   const [showTranslation, setShowTranslation] = useState(false);
+  
+  // Speech recognition state
+  const [isListening, setIsListening] = useState(false);
+  const [transcribedText, setTranscribedText] = useState<string>('');
+  const [speechError, setSpeechError] = useState<string | null>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   const learningLang = LANGUAGES[learningLanguage] || LANGUAGES['inglés'];
   const translationLang = LANGUAGES[translationLanguage] || LANGUAGES['español'];
@@ -92,6 +132,11 @@ const AlienTranslatorGame: React.FC<{
   const handleAnswer = async (answerIndex: number) => {
     const isCorrect = answerIndex === correctAnswerIndex;
     soundManager.playSFX(isCorrect ? 'success' : 'error');
+    
+    // Clear speech recognition state
+    stopListening();
+    setTranscribedText('');
+    setSpeechError(null);
     
     setState(prev => ({
       ...prev,
@@ -168,8 +213,136 @@ const AlienTranslatorGame: React.FC<{
     }
   };
 
+  // Speech recognition handler
+  const startListening = () => {
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognitionAPI) {
+      setSpeechError('Reconocimiento de voz no soportado en este navegador');
+      return;
+    }
+
+    // Stop any existing recognition
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
+    }
+
+    soundManager.playSFX('beep');
+    setTranscribedText('');
+    setSpeechError(null);
+    setIsListening(true);
+
+    const recognition = new SpeechRecognitionAPI();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    
+    // Map language names to speech recognition language codes
+    const langCodes: Record<string, string> = {
+      'español': 'es-ES',
+      'inglés': 'en-US',
+      'alemán': 'de-DE',
+      'francés': 'fr-FR',
+      'italiano': 'it-IT'
+    };
+    recognition.lang = langCodes[learningLanguage] || 'en-US';
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = Array.from(event.results)
+        .map(result => result[0].transcript)
+        .join('');
+      
+      setTranscribedText(transcript);
+      
+      // Check if this is a final result
+      if (event.results[event.resultIndex].isFinal) {
+        checkSpeechAnswer(transcript);
+      }
+    };
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      console.error('Speech recognition error:', event.error);
+      setIsListening(false);
+      
+      if (event.error === 'not-allowed') {
+        setSpeechError('Permiso de micrófono denegado');
+      } else if (event.error === 'no-speech') {
+        setSpeechError('No se detectó voz');
+      } else {
+        setSpeechError(`Error: ${event.error}`);
+      }
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
+      recognitionRef.current = null;
+    }
+    setIsListening(false);
+  };
+
+  // Check if speech matches an option
+  const checkSpeechAnswer = (transcript: string) => {
+    const normalizedTranscript = transcript.toLowerCase().trim().replace(/[.,!?]/g, '');
+    
+    // Check against all options to find the best match
+    let bestMatchIndex = -1;
+    let bestMatchScore = 0;
+    
+    currentOptions.forEach((option, idx) => {
+      const normalizedOption = option.toLowerCase().trim().replace(/[.,!?]/g, '');
+      
+      // Check for exact match
+      if (normalizedTranscript === normalizedOption) {
+        bestMatchIndex = idx;
+        bestMatchScore = 100;
+        return;
+      }
+      
+      // Check if transcript contains the option or vice versa
+      if (normalizedTranscript.includes(normalizedOption) || normalizedOption.includes(normalizedTranscript)) {
+        const score = Math.min(normalizedTranscript.length, normalizedOption.length) / 
+                      Math.max(normalizedTranscript.length, normalizedOption.length) * 80;
+        if (score > bestMatchScore) {
+          bestMatchScore = score;
+          bestMatchIndex = idx;
+        }
+      }
+      
+      // Check word overlap
+      const transcriptWords = normalizedTranscript.split(/\s+/);
+      const optionWords = normalizedOption.split(/\s+/);
+      const matchingWords = transcriptWords.filter(word => 
+        word.length > 2 && optionWords.some(optWord => optWord.includes(word) || word.includes(optWord))
+      );
+      
+      if (matchingWords.length > 0) {
+        const score = (matchingWords.length / optionWords.length) * 60;
+        if (score > bestMatchScore) {
+          bestMatchScore = score;
+          bestMatchIndex = idx;
+        }
+      }
+    });
+    
+    // If we found a reasonable match (score > 50), use it
+    if (bestMatchIndex >= 0 && bestMatchScore > 50) {
+      handleAnswer(bestMatchIndex);
+    } else {
+      setSpeechError(`No se reconoció: "${transcript}"`);
+    }
+  };
+
   const goBackToMenu = () => {
     soundManager.playSFX('beep');
+    stopListening();
     setState(prev => ({
       ...prev,
       phase: 'intro',
@@ -183,6 +356,8 @@ const AlienTranslatorGame: React.FC<{
     setCurrentOptionTranslations([]);
     setCorrectAnswerIndex(0);
     setShowTranslation(false);
+    setTranscribedText('');
+    setSpeechError(null);
   };
 
   // Load voices on mount
@@ -349,6 +524,49 @@ const AlienTranslatorGame: React.FC<{
                 <div className="text-green-700 font-mystic text-[10px] md:text-xs mb-3 md:mb-4 uppercase tracking-widest">
                   ¿Qué sigue?
                 </div>
+                
+                {/* Speech recognition panel - single microphone */}
+                <div className="mb-3 p-3 border border-yellow-500/50 rounded bg-yellow-900/10">
+                  <div className="flex items-center justify-between gap-3">
+                    <button
+                      onClick={() => isListening ? stopListening() : startListening()}
+                      className={`flex items-center gap-2 px-3 py-2 rounded transition-all ${
+                        isListening 
+                          ? 'bg-red-900/50 border border-red-500 text-red-400' 
+                          : 'bg-yellow-900/30 border border-yellow-700 text-yellow-400 hover:border-yellow-500'
+                      }`}
+                    >
+                      <span className={`text-lg ${isListening ? 'animate-pulse' : ''}`}>🎤</span>
+                      <span className="font-mono text-xs">
+                        {isListening ? 'Detener' : 'Hablar respuesta'}
+                      </span>
+                    </button>
+                    
+                    <div className="flex-1">
+                      {isListening && (
+                        <div className="text-yellow-400 font-mono text-xs animate-pulse">
+                          Escuchando... Habla tu respuesta
+                        </div>
+                      )}
+                      {transcribedText && !isListening && (
+                        <div className="text-yellow-400 font-mono text-xs">
+                          📝 "{transcribedText}"
+                        </div>
+                      )}
+                      {speechError && (
+                        <div className="text-red-400 font-mono text-xs">
+                          ⚠️ {speechError}
+                        </div>
+                      )}
+                      {!isListening && !transcribedText && !speechError && (
+                        <div className="text-yellow-700 font-mono text-xs">
+                          Dicta tu respuesta o selecciona una opción
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
                 <div className="grid grid-cols-1 gap-2 md:gap-3">
                   {currentOptions.map((option, idx) => (
                     <div key={idx} className="relative">
@@ -360,10 +578,11 @@ const AlienTranslatorGame: React.FC<{
                         <span className="text-green-700 mr-2">[{idx + 1}]</span>
                         {option}
                       </button>
-                      <div className="flex gap-2 mt-1 px-2">
+                      <div className="flex items-center gap-2 mt-1 px-2">
                         <button
                           onClick={(e) => { e.stopPropagation(); speakText(option, learningLanguage); }}
                           className="text-cyan-700 hover:text-cyan-500 text-[10px] font-mono"
+                          title="Escuchar"
                         >
                           🔊
                         </button>

@@ -684,9 +684,8 @@ export async function generateVocabularyDialogue(
     }
   }
   
-  // Pick a random correct answer from options
-  const correctIndex = Math.floor(Math.random() * 4);
-  result.translation = result.optionTranslations[correctIndex];
+  // The first option is always the correct one
+  // No need to modify translation - it should remain the translation of targetText
   
   return result;
 }

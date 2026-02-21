@@ -34,6 +34,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
 
   const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const keepPlayingOnCloseRef = useRef(false);
 
   const stations = availableStations.length > 0
     ? availableStations
@@ -95,8 +96,11 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
 
   useEffect(() => {
     return () => {
-      currentSourceRef.current = null;
-      soundManager.stopAllAudio();
+      // Only stop audio if we're not keeping it playing after save
+      if (!keepPlayingOnCloseRef.current) {
+        currentSourceRef.current = null;
+        soundManager.stopAllAudio();
+      }
     };
   }, []);
 
@@ -362,6 +366,8 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
         onUpdate({ avatar_url: avatar, anthem_url: finalAudio });
         if (finalAudio) {
           setRadioAudio(finalAudio);
+          // Set flag to keep audio playing when modal closes
+          keepPlayingOnCloseRef.current = true;
           await playRadioAudio(finalAudio);
         } else {
           stopPreview();
