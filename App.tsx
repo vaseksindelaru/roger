@@ -36,7 +36,7 @@ const App: React.FC = () => {
   const [initialHelp, setInitialHelp] = useState(0);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(['inglés']);
   const [completedSectors, setCompletedSectors] = useState<string[]>([]);
-  const [currentSector, setCurrentSector] = useState<string | null>(null);
+  const [currentSector, setCurrentSector] = useState<{id: string, name: string, image?: string} | null>(null);
   const [availableStations, setAvailableStations] = useState<string[]>(mergeStationCatalog(GALACTIC_PRESET_STATIONS));
 
   useEffect(() => {
@@ -188,7 +188,7 @@ const App: React.FC = () => {
       const generatedClues = await generateCluesForWords(wordStrings, selectedLanguages);
       setClues(generatedClues);
       setCrossword(newCrossword);
-      setCurrentSector('DAILY');
+      setCurrentSector({ id: 'DAILY', name: data.theme });
       soundManager.playSFX('success');
     } catch (err) {
       setError("No se pudo cargar el reto diario.");
@@ -242,7 +242,7 @@ const App: React.FC = () => {
       const generatedClues = await generateCluesForWords(wordStrings, selectedLanguages);
       setClues(generatedClues);
       setCrossword(newCrossword);
-      setCurrentSector(sector.id);
+      setCurrentSector({ id: sector.id, name: sector.name, image: sector.image });
       soundManager.playSFX('success');
     } catch (err: any) {
       setError(err.message);
@@ -253,8 +253,8 @@ const App: React.FC = () => {
   };
 
   const handleCrosswordComplete = () => {
-    if (currentSector && currentSector !== 'DAILY') {
-      markSectorComplete(currentSector);
+    if (currentSector && currentSector.id !== 'DAILY') {
+      markSectorComplete(currentSector.id);
     }
     soundManager.playSFX('success');
   };
@@ -378,7 +378,14 @@ const App: React.FC = () => {
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   {crossword.theme && (
-                    <div className="bg-black border-4 border-green-500 p-6 rounded-xl text-green-500 shadow-xl relative overflow-hidden flex-1 mr-4">
+                    <div className="bg-black border-4 border-green-500 p-4 rounded-xl text-green-500 shadow-xl relative overflow-hidden flex-1 mr-4 flex items-center gap-4">
+                      {currentSector?.image && (
+                        <img 
+                          src={currentSector.image} 
+                          alt={crossword.theme}
+                          className="w-20 h-20 border-2 border-cyan-500 pixelated flex-shrink-0"
+                        />
+                      )}
                       <div className="relative z-10">
                         <span className="text-green-700 text-xs font-black uppercase tracking-widest">Sector Detectado</span>
                         <h2 className="text-3xl font-mystic">{crossword.theme}</h2>

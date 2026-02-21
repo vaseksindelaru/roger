@@ -18,16 +18,7 @@ interface SectorMapProps {
   isDarkMode: boolean;
 }
 
-const SECTORS: Sector[] = [
-  { id: 'S1', name: 'Nebulosa de Novatos', x: 100, y: 100, difficulty: 1 },
-  { id: 'S2', name: 'Cinturón de Asteroides', x: 300, y: 150, difficulty: 2 },
-  { id: 'S3', name: 'Agujero Negro de Gramática', x: 500, y: 100, difficulty: 3 },
-  { id: 'S4', name: 'Planeta de los Verbos', x: 200, y: 300, difficulty: 2 },
-  { id: 'S5', name: 'Galaxia de Modismos', x: 450, y: 350, difficulty: 4 },
-  { id: 'S6', name: 'Centro del Universo Lingüístico', x: 700, y: 250, difficulty: 5 },
-];
-
-// Pre-generated pixel art images for sectors (base64 PNGs)
+// Pre-generated pixel art images for sectors (base64 SVGs)
 const SECTOR_IMAGES: Record<string, string> = {
   'S1': 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="#0a0a1a" width="64" height="64"/><circle cx="32" cy="32" r="20" fill="#1a3a5a" opacity="0.5"/><circle cx="25" cy="28" r="8" fill="#2a5a8a" opacity="0.3"/><circle cx="40" cy="35" r="6" fill="#3a7aba" opacity="0.2"/><circle cx="15" cy="15" r="1" fill="#fff"/><circle cx="50" cy="20" r="1" fill="#fff"/><circle cx="45" cy="50" r="1" fill="#fff"/><circle cx="10" cy="45" r="1" fill="#fff"/></svg>`),
   'S2': 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="#0a0a1a" width="64" height="64"/><polygon points="10,30 15,20 20,30" fill="#4a4a4a"/><polygon points="30,40 38,25 46,40" fill="#5a5a5a"/><polygon points="50,35 55,28 60,35" fill="#3a3a3a"/><circle cx="15" cy="15" r="1" fill="#fff"/><circle cx="45" cy="10" r="1" fill="#fff"/><circle cx="55" cy="55" r="1" fill="#fff"/></svg>`),
@@ -36,6 +27,15 @@ const SECTOR_IMAGES: Record<string, string> = {
   'S5': 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="#0a0a1a" width="64" height="64"/><ellipse cx="32" cy="32" rx="28" ry="10" fill="#1a1a3a" transform="rotate(30 32 32)"/><ellipse cx="32" cy="32" rx="20" ry="6" fill="#2a2a5a" transform="rotate(30 32 32)"/><circle cx="20" cy="20" r="1" fill="#fff"/><circle cx="45" cy="15" r="1" fill="#fff"/><circle cx="55" cy="45" r="1" fill="#fff"/><circle cx="10" cy="50" r="1" fill="#fff"/></svg>`),
   'S6': 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="#0a0a1a" width="64" height="64"/><circle cx="32" cy="32" r="12" fill="#ffcc00"/><circle cx="32" cy="32" r="18" fill="none" stroke="#ff9900" stroke-width="2" opacity="0.5"/><circle cx="32" cy="32" r="24" fill="none" stroke="#ff6600" stroke-width="1" opacity="0.3"/><circle cx="15" cy="15" r="1" fill="#fff"/><circle cx="50" cy="12" r="1" fill="#fff"/><circle cx="55" cy="50" r="1" fill="#fff"/><circle cx="10" cy="55" r="1" fill="#fff"/></svg>`),
 };
+
+const SECTORS: Sector[] = [
+  { id: 'S1', name: 'Nebulosa de Novatos', x: 100, y: 100, difficulty: 1, image: SECTOR_IMAGES['S1'] },
+  { id: 'S2', name: 'Cinturón de Asteroides', x: 300, y: 150, difficulty: 2, image: SECTOR_IMAGES['S2'] },
+  { id: 'S3', name: 'Agujero Negro de Gramática', x: 500, y: 100, difficulty: 3, image: SECTOR_IMAGES['S3'] },
+  { id: 'S4', name: 'Planeta de los Verbos', x: 200, y: 300, difficulty: 2, image: SECTOR_IMAGES['S4'] },
+  { id: 'S5', name: 'Galaxia de Modismos', x: 450, y: 350, difficulty: 4, image: SECTOR_IMAGES['S5'] },
+  { id: 'S6', name: 'Centro del Universo Lingüístico', x: 700, y: 250, difficulty: 5, image: SECTOR_IMAGES['S6'] },
+];
 
 const SectorMap: React.FC<SectorMapProps> = ({ completedSectors, onSelectSector, isDarkMode }) => {
   const svgRef = useRef<SVGSVGElement>(null);
