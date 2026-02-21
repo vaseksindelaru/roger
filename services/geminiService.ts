@@ -307,29 +307,39 @@ export async function generateShipRadio(station: string): Promise<string> {
   }
 
   const stationPrompts: Record<string, string> = {
-    'Monolith Burger Jazz': 'Funky, alien-inspired jazz. Think Space Quest 4 bar music: FM synthesis, weird basslines, and catchy melodies.',
-    'Xenon City Beats': 'High-energy 80s electronic music with heavy synth leads and gated reverb drums.',
-    'Estraana Ambient': 'A chill, ambient space broadcast with soft cosmic hums. The music is ethereal and floating.',
-    'Galaxy Gallop Rock': 'High-energy, fuzzy space rock with 8-bit flair.',
-    'Vohaul Dark Signal': 'Eerie, mysterious signals from the deep void mixed with cosmic static.'
+    'Monolith Burger Jazz': 'Funky, alien-inspired jazz instrumental. Think Space Quest 4 bar music: FM synthesis, weird basslines, and catchy melodies. Pure instrumental music.',
+    'Monolith Bar Classic (SQ4)': 'Classic Space Quest 4 bar music style. FM synthesis, Roland MT-32 sound, funky bass, catchy melody. Pure instrumental, no vocals.',
+    'Xenon City Beats': 'High-energy 80s electronic instrumental music with heavy synth leads and gated reverb drums. No vocals, just pure synth music.',
+    'Estraana Ambient': 'A chill, ambient space instrumental with soft cosmic hums and ethereal floating synthesizer pads. Pure atmospheric music.',
+    'Galaxy Gallop Rock': 'High-energy, fuzzy space rock instrumental with 8-bit flair. Driving drums and guitar-like synths. No vocals.',
+    'Vohaul Dark Signal': 'Eerie, mysterious instrumental signals from the deep void mixed with cosmic static. Dark ambient synthesizer music.',
+    'Sariens Patrol Alarm': 'Military-style space march instrumental with rhythmic percussion and warning synth tones. No vocals.',
+    'Space Janitor Funk': 'Upbeat, groovy funk instrumental with a comedic space vibe. Slap bass and rhythmic drums. Pure instrumental.'
   };
 
-  const primaryPrompt = `You are the Lyria 3 music generation engine, specialized in 1990s Sierra On-Line adventure game soundtracks.
+  const primaryPrompt = `You are a retro video game music generator, specialized in 1990s Sierra On-Line adventure game soundtracks.
   Station: ${station}.
-  Mood: ${stationPrompts[station] || 'Space adventure.'}
+  Style: ${stationPrompts[station] || 'Space Quest 4 style instrumental music.'}
   
-  Instructions:
-  - Create a 15-second CATCHY and MELODIC musical loop that sounds like it came from Space Quest 4 (FM synthesis, Roland MT-32 style).
-  - Use your voice to simulate melodic instruments: lead synths, funky basslines, and crisp percussion.
-  - If it's "Deep Space Jazz", make it sound like the iconic "Monolith Burger" bar music from Space Quest 4: very melodic, slightly weird, but highly musical.
-  - Focus 100% on the MUSIC and MELODY. Do NOT speak.
-  - The output should be a clean, high-fidelity musical performance.
+  CRITICAL REQUIREMENTS:
+  - Create ONLY instrumental music. NO singing, NO spoken words, NO lyrics, NO voice.
+  - Use your voice ONLY to simulate musical instruments: synthesizers, drums, bass, melody lines.
+  - Use syllables like "dum", "tsst", "bom", "dee", "doo", "zing", "bwap" to simulate instruments.
+  - The music should sound like Space Quest 4 (1991) - FM synthesis, Roland MT-32, catchy retro game music.
+  - Duration: approximately 15-20 seconds of looping music.
+  - Style: Melodic, rhythmic, instrumental only.
   
-  Deliver the audio directly as a high-quality musical performance.`;
+  DO NOT:
+  - Do NOT sing words or lyrics
+  - Do NOT speak any text
+  - Do NOT include any voice narration
+  
+  ONLY output pure instrumental music simulated with your voice.`;
 
-  const fallbackPrompt = `Create a 15-second retro space-game radio loop for station "${station}".
-  Use only vocal syllables like "la", "ba", "do", "vum", no spoken words.
-  Style: catchy, melodic, slightly weird, 1990s adventure game vibe.`;
+  const fallbackPrompt = `Create a 15-second retro space-game instrumental music loop for station "${station}".
+  Use ONLY non-verbal vocal sounds to simulate instruments: "dum", "tsst", "bom", "dee", "zing".
+  NO singing, NO words, NO lyrics - only instrumental music simulation.
+  Style: catchy, melodic, 1990s Space Quest adventure game vibe.`;
 
   let base64Audio = await generateAudioFromPrompt(primaryPrompt, 'Puck');
   if (!base64Audio) {
