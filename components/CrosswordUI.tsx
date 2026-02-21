@@ -20,6 +20,7 @@ const CrosswordUI: React.FC<CrosswordUIProps> = ({ data, cluesWithText, targetLa
   const [selectedCell, setSelectedCell] = useState<{ x: number, y: number } | null>(null);
   const [progress, setProgress] = useState(0);
   const [oracleWord, setOracleWord] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     if (!data || !data.grid || data.grid.length === 0) return;
@@ -261,32 +262,166 @@ const CrosswordUI: React.FC<CrosswordUIProps> = ({ data, cluesWithText, targetLa
 
   const isGridReady = userGrid.length > 0;
 
+  // Fullscreen mode
+  if (isFullscreen) {
+    return (
+      <div className="fixed inset-0 z-[200] flex flex-col bg-black">
+        {/* Header with progress and close button */}
+        <div className="flex items-center justify-between p-4 border-b-4 border-green-900 bg-black">
+          <div className="flex items-center gap-4">
+            <span className="text-green-500 font-mystic text-lg">{data.theme || 'SECTOR'}</span>
+            <div className="w-48 h-4 rounded-none overflow-hidden border-2 border-green-900">
+              <div 
+                className="h-full bg-green-500 transition-all duration-1000"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <span className="text-green-400 font-mono text-xs">{progress}%</span>
+          </div>
+          <button
+            onClick={() => { soundManager.playSFX('beep'); setIsFullscreen(false); }}
+            className="px-4 py-2 border-2 border-red-900 text-red-400 font-mystic text-xs hover:border-red-500"
+          >
+            ✕ SALIR
+          </button>
+        </div>
+
+        {/* Main content - Grid centered, clues below */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Grid section */}
+          <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
+            {isGridReady && (
+              <div 
+                className={`grid p-2 rounded-none shadow-2xl border-4 bg-black border-green-900`}
+                style={{ 
+                  gap: '2px',
+                  gridTemplateColumns: `repeat(${data.width}, minmax(22px, 32px))`,
+                  width: 'fit-content'
+                }}
+              >
+                {data.grid.map((row, y) => 
+                  row.map((cell, x) => {
+                    const isCompleted = isCellInCompletedWord(x, y);
+                    const isCellCorrect = cell && userGrid[y]?.[x]?.toUpperCase() === cell.solution;
+                    const userCellValue = userGrid[y]?.[x] || '';
+                    
+                    return (
+                      <div 
+                        key={`${x}-${y}`} 
+                        className={`relative flex items-center justify-center transition-all duration-300 rounded-none border-2 aspect-square ${
+                          cell 
+                          ? (isCompleted 
+                              ? 'bg-green-500/20 border-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)]' 
+                              : (isHinted[y]?.[x] 
+                                  ? 'bg-blue-500/20 border-blue-500/50' 
+                                  : 'bg-slate-900 border-green-900 shadow-sm')) 
+                          : 'bg-black border-transparent opacity-100'
+                        } ${selectedCell?.x === x && selectedCell?.y === y ? 'ring-4 ring-green-500 z-10 scale-105 shadow-[0_0_20px_rgba(34,197,94,0.4)]' : ''}`}
+                        onClick={() => cell && setSelectedCell({ x, y })}
+                      >
+                        {cell && (
+                          <>
+                            {cell.clueNumber && (
+                              <span className="absolute top-0 left-0 text-[6px] font-black leading-none text-green-900">
+                                {cell.clueNumber}
+                              </span>
+                            )}
+                            <input
+                              type="text"
+                              maxLength={1}
+                              value={userCellValue}
+                              onChange={(e) => handleInputChange(x, y, e.target.value)}
+                              className={`w-full h-full text-center text-sm font-black uppercase outline-none bg-transparent font-mono ${
+                                userCellValue !== ''
+                                  ? (isCellCorrect ? 'text-green-400' : 'text-red-500') 
+                                  : 'text-white'
+                              }`}
+                            />
+                          </>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Clues section - below the grid */}
+          <div className="h-[40vh] border-t-4 border-green-900 bg-black overflow-y-auto">
+            <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-xs font-mystic uppercase tracking-[0.2em] mb-4 flex items-center gap-3 text-green-500/50">
+                  <div className="w-2 h-2 rounded-none bg-green-500 shadow-[0_0_15px_#22c55e] animate-pulse"></div> HORIZONTALES
+                </h3>
+                <div className="space-y-4">
+                  {data.clues.filter(c => c.direction === 'across').map((c, i) => <ClueItem key={`h-${i}`} clue={c} />)}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-xs font-mystic uppercase tracking-[0.2em] mb-4 flex items-center gap-3 text-green-500/50">
+                  <div className="w-2 h-2 rounded-none bg-green-500 shadow-[0_0_15px_#22c55e] animate-pulse"></div> VERTICALES
+                </h3>
+                <div className="space-y-4">
+                  {data.clues.filter(c => c.direction === 'down').map((c, i) => <ClueItem key={`v-${i}`} clue={c} />)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {oracleWord && (
+          <StarConTerminal 
+            word={oracleWord} 
+            language={targetLanguages[0] || 'inglés'} 
+            onClose={() => setOracleWord(null)} 
+            onRevealLetter={() => revealLetter(oracleWord)}
+            onRevealFullWord={() => { revealFullWord(oracleWord); setOracleWord(null); }}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Normal mode - Grid at top, clues below
   return (
     <div className="relative">
-      {/* Barra de Progreso */}
-      <div className={`mb-10 h-6 rounded-none overflow-hidden shadow-inner border-4 ${isDarkMode ? 'bg-black border-green-900' : 'bg-slate-200 border-slate-300'}`}>
-        <div 
-          className="h-full bg-green-500 shadow-[0_0_20px_rgba(34,197,94,0.5)] transition-all duration-1000"
-          style={{ width: `${progress}%` }}
-        />
+      {/* Barra de Progreso y botón fullscreen */}
+      <div className="flex items-center gap-4 mb-6">
+        <div className={`flex-1 h-6 rounded-none overflow-hidden shadow-inner border-4 ${isDarkMode ? 'bg-black border-green-900' : 'bg-slate-200 border-slate-300'}`}>
+          <div 
+            className="h-full bg-green-500 shadow-[0_0_20px_rgba(34,197,94,0.5)] transition-all duration-1000"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <button
+          onClick={() => { soundManager.playSFX('click'); setIsFullscreen(true); }}
+          className={`px-4 py-2 border-2 font-mystic text-xs transition-all ${
+            isDarkMode 
+              ? 'bg-black border-green-900 text-green-400 hover:border-green-500' 
+              : 'bg-white border-slate-300 text-slate-600 hover:border-green-500'
+          }`}
+          title="Pantalla completa"
+        >
+          ⛶
+        </button>
       </div>
 
-      <div className={`rounded-xl shadow-2xl overflow-hidden flex flex-col xl:flex-row border-8 transition-all ${
+      <div className={`rounded-xl shadow-2xl overflow-hidden flex flex-col border-8 transition-all ${
         isDarkMode ? 'bg-black border-green-900' : 'bg-white border-slate-800'
       }`}>
-        {/* Lado del Tablero */}
-        <div className={`flex-1 p-4 sm:p-8 lg:p-12 flex items-center justify-center overflow-auto min-h-[650px] ${
+        {/* Grid del Tablero - Arriba */}
+        <div className={`p-2 sm:p-4 flex items-center justify-center overflow-auto ${
           isDarkMode ? 'bg-black' : 'bg-slate-100'
         }`}>
           {isGridReady ? (
             <div 
-              className={`grid p-4 sm:p-8 rounded-none shadow-2xl border-4 ${
+              className={`grid p-2 sm:p-3 rounded-none shadow-2xl border-4 ${
                 isDarkMode ? 'bg-black border-green-900' : 'bg-white border-slate-400'
               }`}
               style={{ 
-                // GAP aumentado para separación clara
-                gap: '4px',
-                gridTemplateColumns: `repeat(${data.width}, minmax(35px, 50px))`,
+                gap: '2px',
+                gridTemplateColumns: `repeat(${data.width}, minmax(24px, 36px))`,
                 width: 'fit-content'
               }}
             >
@@ -313,7 +448,7 @@ const CrosswordUI: React.FC<CrosswordUIProps> = ({ data, cluesWithText, targetLa
                       {cell && (
                         <>
                           {cell.clueNumber && (
-                            <span className={`absolute top-0.5 left-0.5 sm:top-1 sm:left-1 text-[7px] sm:text-[9px] font-black leading-none ${isDarkMode ? 'text-green-900' : 'text-slate-400'}`}>
+                            <span className={`absolute top-0 left-0 text-[6px] font-black leading-none ${isDarkMode ? 'text-green-900' : 'text-slate-400'}`}>
                               {cell.clueNumber}
                             </span>
                           )}
@@ -322,7 +457,7 @@ const CrosswordUI: React.FC<CrosswordUIProps> = ({ data, cluesWithText, targetLa
                             maxLength={1}
                             value={userCellValue}
                             onChange={(e) => handleInputChange(x, y, e.target.value)}
-                            className={`w-full h-full text-center text-sm sm:text-xl font-black uppercase outline-none bg-transparent font-mono ${
+                            className={`w-full h-full text-center text-xs sm:text-sm font-black uppercase outline-none bg-transparent font-mono ${
                               userCellValue !== ''
                                 ? (isCellCorrect 
                                     ? (isDarkMode ? 'text-green-400' : 'text-green-900') 
@@ -345,23 +480,25 @@ const CrosswordUI: React.FC<CrosswordUIProps> = ({ data, cluesWithText, targetLa
           )}
         </div>
 
-        {/* Lado de las Pistas */}
-        <div className={`w-full xl:w-[500px] border-l-8 flex flex-col h-[800px] ${isDarkMode ? 'bg-black border-green-900' : 'bg-slate-50 border-slate-800'}`}>
-          <div className="p-8 sm:p-10 overflow-y-auto space-y-12 custom-scrollbar">
-            <div>
-              <h3 className={`text-xs font-mystic uppercase tracking-[0.2em] mb-10 flex items-center gap-5 ${isDarkMode ? 'text-green-500/50' : 'text-green-700'}`}>
-                <div className="w-3 h-3 rounded-none bg-green-500 shadow-[0_0_15px_#22c55e] animate-pulse"></div> HORIZONTALES
-              </h3>
-              <div className="space-y-8">
-                {data.clues.filter(c => c.direction === 'across').map((c, i) => <ClueItem key={`h-${i}`} clue={c} />)}
+        {/* Pistas - Abajo */}
+        <div className={`w-full border-t-8 flex flex-col max-h-[500px] ${isDarkMode ? 'bg-black border-green-900' : 'bg-slate-50 border-slate-800'}`}>
+          <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <h3 className={`text-xs font-mystic uppercase tracking-[0.2em] mb-6 flex items-center gap-4 ${isDarkMode ? 'text-green-500/50' : 'text-green-700'}`}>
+                  <div className="w-3 h-3 rounded-none bg-green-500 shadow-[0_0_15px_#22c55e] animate-pulse"></div> HORIZONTALES
+                </h3>
+                <div className="space-y-6">
+                  {data.clues.filter(c => c.direction === 'across').map((c, i) => <ClueItem key={`h-${i}`} clue={c} />)}
+                </div>
               </div>
-            </div>
-            <div>
-              <h3 className={`text-xs font-mystic uppercase tracking-[0.2em] mb-10 flex items-center gap-5 ${isDarkMode ? 'text-green-500/50' : 'text-green-700'}`}>
-                <div className="w-3 h-3 rounded-none bg-green-500 shadow-[0_0_15px_#22c55e] animate-pulse"></div> VERTICALES
-              </h3>
-              <div className="space-y-8">
-                {data.clues.filter(c => c.direction === 'down').map((c, i) => <ClueItem key={`v-${i}`} clue={c} />)}
+              <div>
+                <h3 className={`text-xs font-mystic uppercase tracking-[0.2em] mb-6 flex items-center gap-4 ${isDarkMode ? 'text-green-500/50' : 'text-green-700'}`}>
+                  <div className="w-3 h-3 rounded-none bg-green-500 shadow-[0_0_15px_#22c55e] animate-pulse"></div> VERTICALES
+                </h3>
+                <div className="space-y-6">
+                  {data.clues.filter(c => c.direction === 'down').map((c, i) => <ClueItem key={`v-${i}`} clue={c} />)}
+                </div>
               </div>
             </div>
           </div>
