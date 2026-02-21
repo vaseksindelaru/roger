@@ -130,41 +130,68 @@ const AlienTranslatorGame: React.FC<{ onClose: () => void }> = ({ onClose }) => 
     }
   };
 
+  const goBackToMenu = () => {
+    soundManager.playSFX('beep');
+    setState(prev => ({
+      ...prev,
+      phase: 'intro',
+      selectedSpecies: null,
+      currentTurn: 0,
+      score: 0,
+      dialogue: [],
+      feedback: null,
+      isCorrect: null,
+    }));
+    setCurrentOptions([]);
+    setCorrectAnswer('');
+  };
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-sm overflow-y-auto">
       <div className="absolute inset-0 stars-bg"></div>
       
-      <div className="relative w-full max-w-2xl p-6">
+      <div className="relative w-full max-w-2xl p-4 md:p-6 my-8 md:my-0">
+        {/* Close Button */}
         <button 
           onClick={() => { soundManager.playSFX('beep'); onClose(); }} 
-          className="absolute -top-10 right-4 text-green-500/50 hover:text-green-500 font-mystic text-xl"
+          className="absolute top-0 right-0 md:-top-10 md:right-4 text-green-500/50 hover:text-green-500 font-mystic text-xl z-10 bg-black/50 md:bg-transparent px-2 py-1 rounded"
         >
-          ✕
+          ✕ CERRAR
         </button>
 
+        {/* Back to Menu Button (only during dialogue) */}
+        {state.phase === 'dialogue' && (
+          <button 
+            onClick={goBackToMenu}
+            className="absolute top-0 left-0 md:-top-10 md:left-4 text-purple-500/50 hover:text-purple-500 font-mystic text-sm z-10 bg-black/50 md:bg-transparent px-2 py-1 rounded"
+          >
+            ← MENÚ
+          </button>
+        )}
+
         {/* Header */}
-        <div className="text-center mb-8">
-          <h2 className="font-mystic text-3xl text-green-500 flicker tracking-wider">
+        <div className="text-center mb-6 md:mb-8">
+          <h2 className="font-mystic text-xl md:text-3xl text-green-500 flicker tracking-wider">
             🛸 TRADUCTOR UNIVERSAL 🛸
           </h2>
-          <p className="text-green-700 font-mono text-xs mt-2 uppercase tracking-widest">
+          <p className="text-green-700 font-mono text-[10px] md:text-xs mt-2 uppercase tracking-widest">
             Aprende idiomas alienígenas a través del diálogo
           </p>
         </div>
 
         {/* Score Display */}
         {state.phase !== 'intro' && (
-          <div className="flex justify-between items-center mb-6 px-4">
-            <div className="text-green-400 font-mono text-sm">
-              PUNTOS: <span className="text-green-500 font-bold text-xl">{state.score}</span>
+          <div className="flex flex-wrap justify-between items-center mb-4 md:mb-6 px-2 md:px-4 gap-2">
+            <div className="text-green-400 font-mono text-xs md:text-sm">
+              PUNTOS: <span className="text-green-500 font-bold text-lg md:text-xl">{state.score}</span>
             </div>
-            <div className="text-green-400 font-mono text-sm">
+            <div className="text-green-400 font-mono text-xs md:text-sm">
               RONDA: <span className="text-green-500 font-bold">{state.currentTurn + 1}/5</span>
             </div>
             {state.selectedSpecies && (
               <div className="flex items-center gap-2">
-                <span className="text-2xl">{state.selectedSpecies.avatar}</span>
-                <span className="text-green-500 font-mystic text-sm">{state.selectedSpecies.name}</span>
+                <span className="text-xl md:text-2xl">{state.selectedSpecies.avatar}</span>
+                <span className="text-green-500 font-mystic text-xs md:text-sm">{state.selectedSpecies.name}</span>
               </div>
             )}
           </div>
