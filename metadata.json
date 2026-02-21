@@ -1,0 +1,8 @@
+{
+  "name": "CrossLingua - Roger Wilco's Vocabulary Quest",
+  "description": "Una aventura espacial interactiva para aprender idiomas resolviendo crucigramas en los confines de la galaxia.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
