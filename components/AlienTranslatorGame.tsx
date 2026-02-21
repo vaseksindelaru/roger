@@ -1,4 +1,4 @@
-
+ 
 import React, { useState, useEffect, useCallback } from 'react';
 import { generateAlienDialogue } from '../services/geminiService';
 import { soundManager } from '../services/SoundManager';

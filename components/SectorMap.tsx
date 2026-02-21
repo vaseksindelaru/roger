@@ -37,10 +37,20 @@ const SECTORS: Sector[] = [
   { id: 'S6', name: 'Centro del Universo Lingüístico', x: 700, y: 250, difficulty: 5, image: SECTOR_IMAGES['S6'] },
 ];
 
+interface Star {
+  x: number;
+  y: number;
+  r: number;
+  speed: number;
+  opacity: number;
+}
+
 const SectorMap: React.FC<SectorMapProps> = ({ completedSectors, onSelectSector, isDarkMode }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [selectedSector, setSelectedSector] = useState<Sector | null>(null);
   const [hoveredSector, setHoveredSector] = useState<Sector | null>(null);
+  const animationRef = useRef<number | null>(null);
+  const starsRef = useRef<Star[]>([]);
 
   useEffect(() => {
     if (!svgRef.current) return;
@@ -51,23 +61,71 @@ const SectorMap: React.FC<SectorMapProps> = ({ completedSectors, onSelectSector,
     const width = 800;
     const height = 450;
 
-    // Background stars
-    const stars = Array.from({ length: 50 }, () => ({
+    // Initialize stars with different speeds for parallax effect
+    starsRef.current = Array.from({ length: 40 }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      r: Math.random() * 1.5
+      r: Math.random() * 1.5 + 0.5,
+      speed: Math.random() * 0.3 + 0.1, // Slower speeds
+      opacity: Math.random() * 0.5 + 0.3
     }));
 
-    svg.selectAll('.star')
-      .data(stars)
+    // Create star group
+    const starsGroup = svg.append('g').attr('class', 'stars');
+
+    // Render initial stars
+    const starsSelection = starsGroup.selectAll('.star')
+      .data(starsRef.current as Star[])
       .enter()
       .append('circle')
       .attr('class', 'star')
-      .attr('cx', d => d.x)
-      .attr('cy', d => d.y)
-      .attr('r', d => d.r)
+      .attr('cx', (d: Star) => d.x)
+      .attr('cy', (d: Star) => d.y)
+      .attr('r', (d: Star) => d.r)
       .attr('fill', isDarkMode ? '#fff' : '#000')
-      .attr('opacity', 0.5);
+      .attr('opacity', (d: Star) => d.opacity);
+
+    // Animation function - stars moving from center outward (ship moving forward)
+    const animateStars = () => {
+      const centerX = width / 2;
+      const centerY = height / 2;
+      
+      starsRef.current.forEach(star => {
+        // Calculate direction from center
+        const dx = star.x - centerX;
+        const dy = star.y - centerY;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        
+        // Move star outward from center
+        star.x += (dx / dist) * star.speed * 0.8;
+        star.y += (dy / dist) * star.speed * 0.8;
+        
+        // Increase size as star gets closer (simulating coming towards viewer)
+        const newDist = Math.sqrt((star.x - centerX) ** 2 + (star.y - centerY) ** 2);
+        const maxDist = Math.sqrt(centerX ** 2 + centerY ** 2);
+        star.r = 0.5 + (newDist / maxDist) * 2;
+        
+        // Reset star position when it goes off screen
+        if (star.x < 0 || star.x > width || star.y < 0 || star.y > height) {
+          // Reset near center with random offset
+          const angle = Math.random() * Math.PI * 2;
+          const dist = Math.random() * 20 + 5;
+          star.x = centerX + Math.cos(angle) * dist;
+          star.y = centerY + Math.sin(angle) * dist;
+          star.r = 0.5;
+        }
+      });
+
+      starsSelection
+        .attr('cx', (d: Star) => d.x)
+        .attr('cy', (d: Star) => d.y)
+        .attr('r', (d: Star) => d.r);
+
+      animationRef.current = requestAnimationFrame(animateStars);
+    };
+
+    // Start animation
+    animationRef.current = requestAnimationFrame(animateStars);
 
     // Connections (lines)
     const links = [
@@ -133,10 +191,24 @@ const SectorMap: React.FC<SectorMapProps> = ({ completedSectors, onSelectSector,
       .attr('opacity', 0.7)
       .text(d => d.name.toUpperCase());
 
+    // Cleanup animation on unmount
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
   }, [completedSectors, isDarkMode]);
 
   return (
     <div className={`relative border-4 ${isDarkMode ? 'border-green-900 bg-black' : 'border-slate-200 bg-white'} rounded-xl overflow-hidden shadow-2xl`}>
+      {/* Spaceship window frame effect */}
+      <div className="absolute inset-0 pointer-events-none z-20">
+        <div className="absolute top-0 left-0 w-8 h-full bg-gradient-to-r from-black/50 to-transparent"></div>
+        <div className="absolute top-0 right-0 w-8 h-full bg-gradient-to-l from-black/50 to-transparent"></div>
+        <div className="absolute top-0 left-0 w-full h-6 bg-gradient-to-b from-black/50 to-transparent"></div>
+        <div className="absolute bottom-0 left-0 w-full h-6 bg-gradient-to-t from-black/50 to-transparent"></div>
+      </div>
+      
       <div className="absolute top-4 left-4 z-10">
         <h3 className="text-[10px] font-mystic text-green-500 uppercase tracking-widest">Mapa Estelar de Sectores</h3>
       </div>
