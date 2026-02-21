@@ -7,6 +7,7 @@ import SettingsModal from './components/SettingsModal';
 import LoginModal from './components/LoginModal';
 import ProfileModal from './components/ProfileModal';
 import RadioStationModal from './components/RadioStationModal';
+import AlienTranslatorGame from './components/AlienTranslatorGame';
 import SectorMap from './components/SectorMap';
 import MissionFeed from './components/MissionFeed';
 import { WordItem, CrosswordData } from './types';
@@ -33,6 +34,7 @@ const App: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showSignalLocator, setShowSignalLocator] = useState(false);
+  const [showAlienGame, setShowAlienGame] = useState(false);
   const [initialHelp, setInitialHelp] = useState(0);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(['inglés']);
   const [completedSectors, setCompletedSectors] = useState<string[]>([]);
@@ -320,6 +322,15 @@ const App: React.FC = () => {
               </button>
             )}
             {user && (
+              <button
+                onClick={() => { soundManager.playSFX('click'); setShowAlienGame(true); }}
+                className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg border-2 border-purple-800 text-purple-300 hover:border-purple-500 transition-all font-mystic text-[10px]"
+                title="Traductor Universal"
+              >
+                👽 TRADUCTOR
+              </button>
+            )}
+            {user && (
               <button 
                 onClick={handleLogout}
                 className="p-2 rounded-lg border-2 border-red-900 text-red-500 hover:bg-red-900/20 transition-all font-mystic text-[10px]"
@@ -455,6 +466,9 @@ const App: React.FC = () => {
           onStationsUpdate={(stations) => setAvailableStations(mergeStationCatalog(stations))}
           onClose={() => setShowSignalLocator(false)}
         />
+      )}
+      {showAlienGame && (
+        <AlienTranslatorGame onClose={() => setShowAlienGame(false)} />
       )}
     </div>
   );

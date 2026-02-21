@@ -456,6 +456,75 @@ Return only the image.`;
   throw new Error((lastError as any)?.message || "No se pudo generar el avatar.");
 }
 
+export async function generateAlienDialogue(speciesId: string, difficulty: number): Promise<{
+  alienText: string;
+  translation: string;
+  options: string[];
+}> {
+  const speciesNames: Record<string, string> = {
+    'keronian': 'Keroniano',
+    'sarien': 'Sarien',
+    'estray': 'Estrayano',
+    'vohaul': 'Vohaul',
+    'slug': 'Slug',
+  };
+
+  const speciesName = speciesNames[speciesId] || 'Alien';
+
+  const response = await generateContentWithTextFallback((model) => ({
+    model,
+    contents: `You are creating an alien language learning game inspired by Space Quest 4.
+    
+    Create a dialogue phrase in an alien language for species: ${speciesName} (difficulty: ${difficulty}/5).
+    
+    REQUIREMENTS:
+    1. Create a SHORT phrase (2-5 words) in a made-up alien language that sounds like it could be from ${speciesName}
+    2. Provide the Spanish translation of what the alien is saying
+    3. Provide 4 possible translations in Spanish (1 correct, 3 wrong)
+    4. The phrases should be simple greetings, questions, or common expressions
+    
+    For difficulty levels:
+    - Level 1-2: Simple greetings like "Hello", "Goodbye", "Thank you"
+    - Level 3-4: Questions like "Where is the spaceship?", "How much does this cost?"
+    - Level 5: Complex phrases like "The warp drive is malfunctioning"
+    
+    Make the alien language sound authentic to the species:
+    - Keroniano: Friendly, melodic sounds (e.g., "Kala bixu noma")
+    - Sarien: Harsh, military sounds (e.g., "Zark tor vek!")
+    - Estrayano: Mystical, whispery sounds (e.g., "Siiireee... vaaash")
+    - Vohaul: Robotic, technical sounds (e.g., "Bleep-zap protocol delta")
+    - Slug: Slow, slimy sounds (e.g., "Ssslluu... gloorb")
+    
+    Return JSON format.`,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          alienText: { type: Type.STRING, description: "The phrase in alien language" },
+          translation: { type: Type.STRING, description: "The correct Spanish translation" },
+          options: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: "4 possible Spanish translations (1 correct, 3 wrong)"
+          }
+        },
+        required: ["alienText", "translation", "options"]
+      }
+    }
+  }));
+
+  const result = JSON.parse(response.text || "{}");
+  
+  // Ensure options include the correct answer
+  if (!result.options?.includes(result.translation)) {
+    result.options = result.options || [];
+    result.options[Math.floor(Math.random() * 4)] = result.translation;
+  }
+  
+  return result;
+}
+
 export async function generateSectorImage(sectorName: string, description?: string): Promise<string> {
   if (!GEMINI_KEY) {
     throw new Error("Falta configurar GEMINI_API_KEY/GOOGLE_API_KEY para generar imagen de sector.");
