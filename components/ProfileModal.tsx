@@ -144,79 +144,196 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, words, onClose, onUpd
     return raw || 'No se pudo sintonizar la estación.';
   };
 
+  const fitAvatarToFrame = (dataUrl: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const size = 128;
+          const canvas = document.createElement('canvas');
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error('No se pudo crear canvas de ajuste.');
+
+          ctx.imageSmoothingEnabled = false;
+          for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+              ctx.fillStyle = (x + y) % 2 === 0 ? '#12203b' : '#172849';
+              ctx.fillRect(x, y, 1, 1);
+            }
+          }
+
+          const maxDim = 112;
+          const scale = Math.min(maxDim / img.width, maxDim / img.height);
+          const dw = Math.max(1, Math.floor(img.width * scale));
+          const dh = Math.max(1, Math.floor(img.height * scale));
+          const dx = Math.floor((size - dw) / 2);
+          const dy = Math.floor((size - dh) / 2) - 2;
+          ctx.drawImage(img, dx, dy, dw, dh);
+
+          ctx.fillStyle = '#0a111f';
+          ctx.fillRect(0, 0, size, 2);
+          ctx.fillRect(0, size - 2, size, 2);
+          ctx.fillRect(0, 0, 2, size);
+          ctx.fillRect(size - 2, 0, 2, size);
+          ctx.fillStyle = '#4de08f';
+          ctx.fillRect(2, 2, size - 4, 1);
+          ctx.fillRect(2, size - 3, size - 4, 1);
+          ctx.fillRect(2, 2, 1, size - 4);
+          ctx.fillRect(size - 3, 2, 1, size - 4);
+
+          resolve(canvas.toDataURL('image/png'));
+        } catch (error) {
+          reject(error);
+        }
+      };
+      img.onerror = () => reject(new Error('No se pudo normalizar el avatar.'));
+      img.src = dataUrl;
+    });
+  };
+
   const generateLocalRetroAvatar = (dataUrl: string): Promise<string> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
         try {
-          const smallSize = 28;
-          const mediumSize = 64;
-          const finalSize = 224;
+          const smallSize = 64;
+          const finalSize = 128;
+          const palette: Array<[number, number, number]> = [
+            [0, 0, 0],
+            [34, 32, 52],
+            [69, 40, 60],
+            [102, 57, 49],
+            [143, 86, 59],
+            [223, 113, 38],
+            [217, 160, 102],
+            [238, 195, 154],
+            [251, 242, 54],
+            [153, 229, 80],
+            [106, 190, 48],
+            [55, 148, 110],
+            [75, 105, 47],
+            [82, 75, 36],
+            [50, 60, 57],
+            [63, 63, 116],
+            [48, 96, 130],
+            [91, 110, 225],
+            [99, 155, 255],
+            [95, 205, 228],
+            [203, 219, 252],
+            [255, 255, 255],
+            [155, 173, 183],
+            [132, 126, 135],
+            [105, 106, 106],
+            [89, 86, 82],
+            [118, 66, 138],
+            [172, 50, 50],
+            [217, 87, 99],
+            [215, 123, 186],
+            [143, 151, 74],
+            [138, 111, 48],
+          ];
+          const bayer4 = [
+            [0, 8, 2, 10],
+            [12, 4, 14, 6],
+            [3, 11, 1, 9],
+            [15, 7, 13, 5],
+          ];
+
+          const nearestPalette = (r: number, g: number, b: number): [number, number, number] => {
+            let best = palette[0];
+            let bestDist = Number.POSITIVE_INFINITY;
+            for (const color of palette) {
+              const dr = r - color[0];
+              const dg = g - color[1];
+              const db = b - color[2];
+              const dist = dr * dr + dg * dg + db * db;
+              if (dist < bestDist) {
+                bestDist = dist;
+                best = color;
+              }
+            }
+            return best;
+          };
 
           const smallCanvas = document.createElement('canvas');
           smallCanvas.width = smallSize;
           smallCanvas.height = smallSize;
           const sctx = smallCanvas.getContext('2d');
           if (!sctx) throw new Error('No se pudo crear contexto de canvas.');
+          sctx.imageSmoothingEnabled = false;
 
-          const crop = Math.min(img.width, img.height);
-          const sx = (img.width - crop) / 2;
-          const sy = (img.height - crop) / 2;
-          sctx.drawImage(img, sx, sy, crop, crop, 0, 0, smallSize, smallSize);
+          sctx.fillStyle = '#101a2b';
+          sctx.fillRect(0, 0, smallSize, smallSize);
+          const inset = 4;
+          const innerSize = smallSize - inset * 2;
+          const scale = Math.min(innerSize / img.width, innerSize / img.height);
+          const dw = Math.max(1, Math.floor(img.width * scale));
+          const dh = Math.max(1, Math.floor(img.height * scale));
+          const dx = inset + Math.floor((innerSize - dw) / 2);
+          const dy = inset + Math.floor((innerSize - dh) / 2);
+          sctx.drawImage(img, 0, 0, img.width, img.height, dx, dy, dw, dh);
 
           const imageData = sctx.getImageData(0, 0, smallSize, smallSize);
-          for (let i = 0; i < imageData.data.length; i += 4) {
-            imageData.data[i] = Math.round(imageData.data[i] / 32) * 32;
-            imageData.data[i + 1] = Math.round(imageData.data[i + 1] / 32) * 32;
-            imageData.data[i + 2] = Math.round(imageData.data[i + 2] / 32) * 32;
+          for (let y = 0; y < smallSize; y++) {
+            for (let x = 0; x < smallSize; x++) {
+              const i = (y * smallSize + x) * 4;
+              const contrast = 1.1;
+              const threshold = (bayer4[y % 4][x % 4] - 7.5) / 16;
+              const bias = threshold * 10;
+
+              const rawR = imageData.data[i];
+              const rawG = imageData.data[i + 1];
+              const rawB = imageData.data[i + 2];
+              const avg = (rawR + rawG + rawB) / 3;
+              let r = avg + (rawR - avg) * 1.16;
+              let g = avg + (rawG - avg) * 1.12;
+              let b = avg + (rawB - avg) * 1.08;
+
+              r = ((r / 255 - 0.5) * contrast + 0.5) * 255 + bias + 4;
+              g = ((g / 255 - 0.5) * contrast + 0.5) * 255 + bias + 1;
+              b = ((b / 255 - 0.5) * contrast + 0.5) * 255 + bias - 2;
+
+              r = Math.max(0, Math.min(255, r));
+              g = Math.max(0, Math.min(255, g));
+              b = Math.max(0, Math.min(255, b));
+
+              const [pr, pg, pb] = nearestPalette(r, g, b);
+              imageData.data[i] = pr;
+              imageData.data[i + 1] = pg;
+              imageData.data[i + 2] = pb;
+            }
           }
           sctx.putImageData(imageData, 0, 0);
 
-          // Build a crew-style frame and uniform in medium resolution.
-          const midCanvas = document.createElement('canvas');
-          midCanvas.width = mediumSize;
-          midCanvas.height = mediumSize;
-          const mctx = midCanvas.getContext('2d');
-          if (!mctx) throw new Error('No se pudo crear salida intermedia de avatar.');
-          mctx.imageSmoothingEnabled = false;
-          mctx.drawImage(smallCanvas, 0, 0, mediumSize, mediumSize);
+          const quantized = sctx.getImageData(0, 0, smallSize, smallSize);
+          const data = quantized.data;
+          for (let y = 1; y < smallSize - 1; y++) {
+            for (let x = 1; x < smallSize - 1; x++) {
+              const i = (y * smallSize + x) * 4;
+              const left = ((y * smallSize + (x - 1)) * 4);
+              const right = ((y * smallSize + (x + 1)) * 4);
+              const up = ((((y - 1) * smallSize) + x) * 4);
+              const down = ((((y + 1) * smallSize) + x) * 4);
 
-          const uniformTop = Math.floor(mediumSize * 0.62);
-          mctx.fillStyle = '#1f2b4d';
-          mctx.fillRect(0, uniformTop, mediumSize, mediumSize - uniformTop);
-
-          mctx.fillStyle = '#2f4d8a';
-          mctx.beginPath();
-          mctx.moveTo(0, mediumSize);
-          mctx.lineTo(Math.floor(mediumSize * 0.34), uniformTop);
-          mctx.lineTo(Math.floor(mediumSize * 0.66), uniformTop);
-          mctx.lineTo(mediumSize, mediumSize);
-          mctx.closePath();
-          mctx.fill();
-
-          mctx.fillStyle = '#0f1528';
-          mctx.beginPath();
-          mctx.moveTo(Math.floor(mediumSize * 0.42), uniformTop);
-          mctx.lineTo(Math.floor(mediumSize * 0.5), Math.floor(uniformTop + mediumSize * 0.14));
-          mctx.lineTo(Math.floor(mediumSize * 0.58), uniformTop);
-          mctx.closePath();
-          mctx.fill();
-
-          // Confederation badge (pixel style).
-          const badgeX = Math.floor(mediumSize * 0.75);
-          const badgeY = Math.floor(uniformTop + mediumSize * 0.09);
-          mctx.fillStyle = '#f7d36b';
-          mctx.fillRect(badgeX - 3, badgeY - 3, 7, 7);
-          mctx.fillStyle = '#ffedb3';
-          mctx.fillRect(badgeX - 1, badgeY - 1, 3, 3);
-
-          // Retro frame.
-          mctx.strokeStyle = '#0a0f1f';
-          mctx.lineWidth = 2;
-          mctx.strokeRect(1, 1, mediumSize - 2, mediumSize - 2);
-          mctx.strokeStyle = '#4de08f';
-          mctx.lineWidth = 1;
-          mctx.strokeRect(3, 3, mediumSize - 6, mediumSize - 6);
+              const lum = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+              const lumX =
+                (data[right] * 0.299 + data[right + 1] * 0.587 + data[right + 2] * 0.114) -
+                (data[left] * 0.299 + data[left + 1] * 0.587 + data[left + 2] * 0.114);
+              const lumY =
+                (data[down] * 0.299 + data[down + 1] * 0.587 + data[down + 2] * 0.114) -
+                (data[up] * 0.299 + data[up + 1] * 0.587 + data[up + 2] * 0.114);
+              const edge = Math.abs(lumX) + Math.abs(lumY);
+              if (edge > 86 && y < Math.floor(smallSize * 0.72)) {
+                const dark = lum < 122 ? 0.84 : 0.9;
+                data[i] = Math.max(0, Math.floor(data[i] * dark));
+                data[i + 1] = Math.max(0, Math.floor(data[i + 1] * dark));
+                data[i + 2] = Math.max(0, Math.floor(data[i + 2] * dark));
+              }
+            }
+          }
+          sctx.putImageData(quantized, 0, 0);
 
           const outCanvas = document.createElement('canvas');
           outCanvas.width = finalSize;
@@ -224,7 +341,27 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, words, onClose, onUpd
           const octx = outCanvas.getContext('2d');
           if (!octx) throw new Error('No se pudo crear salida de avatar.');
           octx.imageSmoothingEnabled = false;
-          octx.drawImage(midCanvas, 0, 0, finalSize, finalSize);
+          for (let y = 0; y < finalSize; y++) {
+            for (let x = 0; x < finalSize; x++) {
+              octx.fillStyle = (x + y) % 2 === 0 ? '#12203b' : '#172849';
+              octx.fillRect(x, y, 1, 1);
+            }
+          }
+          octx.drawImage(smallCanvas, 0, 0, finalSize, finalSize);
+
+          // Keep full portrait visible; avoid covering lower quarter with overlays.
+
+          octx.fillStyle = '#0a111f';
+          octx.fillRect(0, 0, finalSize, 2);
+          octx.fillRect(0, finalSize - 2, finalSize, 2);
+          octx.fillRect(0, 0, 2, finalSize);
+          octx.fillRect(finalSize - 2, 0, 2, finalSize);
+          octx.fillStyle = '#4de08f';
+          octx.fillRect(2, 2, finalSize - 4, 1);
+          octx.fillRect(2, finalSize - 3, finalSize - 4, 1);
+          octx.fillRect(2, 2, 1, finalSize - 4);
+          octx.fillRect(finalSize - 3, 2, 1, finalSize - 4);
+
           resolve(outCanvas.toDataURL('image/png'));
         } catch (error) {
           reject(error);
@@ -260,7 +397,8 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, words, onClose, onUpd
         soundManager.playSFX('scan');
         try {
           const pixelAvatar = await generateRetroAvatar(base64, mimeType);
-          setAvatar(`data:image/png;base64,${pixelAvatar}`);
+          const normalizedAvatar = await fitAvatarToFrame(`data:image/png;base64,${pixelAvatar}`);
+          setAvatar(normalizedAvatar);
           setAvatarNotice('');
           soundManager.playSFX('success');
         } catch (err) {
@@ -268,7 +406,17 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, words, onClose, onUpd
           try {
             const localAvatar = await generateLocalRetroAvatar(dataUrl);
             setAvatar(localAvatar);
-            setAvatarNotice('IA no disponible. Retrato de tripulación generado localmente.');
+            const msg = getErrorMessage(err).toLowerCase();
+            const isQuota =
+              msg.includes('quota') ||
+              msg.includes('resource_exhausted') ||
+              msg.includes('rate limit') ||
+              msg.includes('too many requests');
+            setAvatarNotice(
+              isQuota
+                ? 'Cuota de IA agotada. Retrato 128x128 de tripulación generado localmente.'
+                : 'IA no disponible. Retrato 128x128 de tripulación generado localmente.'
+            );
             soundManager.playSFX('success');
           } catch (fallbackErr) {
             console.error(fallbackErr);
@@ -481,7 +629,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, words, onClose, onUpd
             <div className="relative group">
               <div className={`w-48 h-48 mx-auto border-4 border-green-900 bg-black flex items-center justify-center overflow-hidden ${isGeneratingAvatar ? 'animate-pulse' : ''}`}>
                 {avatar ? (
-                  <img src={avatar} alt="Avatar" className="w-full h-full object-cover pixelated" />
+                  <img src={avatar} alt="Avatar" className="w-full h-full object-contain pixelated" />
                 ) : (
                   <span className="text-4xl">👤</span>
                 )}
@@ -495,7 +643,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, words, onClose, onUpd
                 onClick={() => fileInputRef.current?.click()}
                 className="mt-4 w-full py-2 bg-green-900/20 border-2 border-green-900 text-green-400 font-mystic text-[10px] hover:bg-green-900/40 transition-all"
               >
-                SUBIR FOTO (NANO BANANAS)
+                SUBIR FOTO (NANO BANANA 2)
               </button>
               {avatarNotice && (
                 <div className="mt-2 p-2 border border-amber-700 bg-amber-950/30 text-amber-300 font-mono text-[8px] uppercase">

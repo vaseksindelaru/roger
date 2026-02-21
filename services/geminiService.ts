@@ -5,7 +5,15 @@ import { WordItem } from "../types";
 const GEMINI_KEY = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY || '';
 const AUDIO_MODEL = "gemini-2.5-flash-preview-tts";
 const TEXT_MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
-const AVATAR_MODELS = ['gemini-2.5-flash-image', 'gemini-3-pro-image-preview', 'gemini-2.0-flash'];
+const AVATAR_MODELS = (process.env.AVATAR_MODELS || '').split(',')
+  .map((m) => m.trim())
+  .filter(Boolean);
+if (AVATAR_MODELS.length === 0) {
+  AVATAR_MODELS.push(
+    'gemini-2.5-flash-image',
+    'gemini-3-pro-image-preview'
+  );
+}
 const ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
 
 const extractBase64Audio = (response: any): string | null => {
@@ -382,18 +390,25 @@ export async function generateRetroAvatar(base64Image: string, mimeType: string 
     throw new Error("Falta configurar GEMINI_API_KEY/GOOGLE_API_KEY para avatar.");
   }
   const localAi = new GoogleGenAI({ apiKey: GEMINI_KEY });
-  const prompt = `Transform the uploaded portrait into a classic 1980s/1990s Sierra-style Space Quest crew character.
-  Visual direction:
-  - Retro 8-bit / 16-bit adventure game portrait, clean pixel art.
-  - The person must remain clearly recognizable (face, hairstyle, skin tone, key facial traits).
-  - Outfit: Galactic Confederation crew uniform (Space Quest vibe), including rank patch, chest insignia, and utility collar.
-  - Role flavor: janitor-hero, bridge officer, or engineering crew style.
-  - Background: simple spaceship interior or starfield, low-detail pixel backdrop.
-  - Color palette: limited, bold retro palette with dithering.
-  Constraints:
-  - No photorealism, no modern 3D render look, no text overlays.
-  - Keep it as a portrait-focused character image.
-  Output ONLY the generated image.`;
+  const prompt = `You are Nano Banana 2, a specialized pixel-art portrait model.
+Convert the uploaded portrait into a Space Quest 4 Confederation crew avatar.
+
+Hard requirements:
+- Final output must be ONLY one PNG image at exactly 128x128 pixels.
+- Art style: authentic early 1990s VGA adventure portrait (Space Quest 4 inspired), like an official Confederation crew dossier portrait.
+- Keep the person clearly recognizable: eyes, nose, mouth, face shape, hairstyle, skin tone.
+- Keep the full head and both shoulders inside frame. Never crop the face, forehead, or chin.
+- Use a limited retro EGA/VGA-like palette with vivid colors.
+- Use simple dithering for shading. Do not use smooth gradients.
+- Outfit: Confederation crew character look (retro sci-fi uniform details allowed).
+- Background: single color or very subtle dither pattern that complements the portrait, no busy scenery.
+- Keep portrait framing tight (head-and-shoulders), centered, and readable at low resolution.
+
+Strict negatives:
+- No photorealism, no modern 3D render look.
+- No text, watermark, labels, UI elements, frames, or explanations.
+- Do not return JSON or markdown.
+Return only the image.`;
 
   let lastError: unknown = null;
   for (const model of AVATAR_MODELS) {
@@ -414,7 +429,7 @@ export async function generateRetroAvatar(base64Image: string, mimeType: string 
       };
 
       if (model.includes('image')) {
-        request.config = { responseModalities: [Modality.IMAGE, Modality.TEXT] };
+        request.config = { responseModalities: [Modality.IMAGE] };
       }
 
       const response = await localAi.models.generateContent(request);
