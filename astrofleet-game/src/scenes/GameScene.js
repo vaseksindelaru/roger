@@ -10,110 +10,103 @@ export class GameScene extends Phaser.Scene {
     create() {
         const { width, height } = this.cameras.main;
 
-        // --- Mapa básico ---
-        this.createMap();
+        // --- Escena Cinemática Maestra ---
+        this.background = this.add.image(width / 2, height / 2, 'full_scene').setDisplaySize(width, height);
 
-        // --- Puerta (bloquea el paso) ---
-        this.door = this.physics.add.staticSprite(NPC_DATA.GuardXorblax.doorX, 320, 'door');
+        // Efecto sutil de respiración (Cámara lenta)
+        this.tweens.add({
+            targets: this.background,
+            scale: 1.02,
+            duration: 6000,
+            yoyo: true,
+            loop: -1,
+            ease: 'Sine.easeInOut'
+        });
 
-        // --- Jugador ---
-        this.player = this.physics.add.sprite(100, 300, 'player');
-        this.player.setCollideWorldBounds(true);
-        this.physics.add.collider(this.player, this.walls);
-        this.physics.add.collider(this.player, this.door);
+        // --- Iluminación Ambiental ---
+        this.add.graphics()
+            .fillStyle(0x000033, 0.1)
+            .fillRect(0, 0, width, height)
+            .setDepth(10);
 
-        // --- NPCs ---
-        this.npcs = this.physics.add.staticGroup();
-        const guardData = NPC_DATA.GuardXorblax;
-        const guard = this.npcs.create(guardData.x, guardData.y, 'npc_guard');
-        guard.setData('name', guardData.name);
-        guard.setData('displayName', guardData.displayName);
-        guard.setData('personality', guardData.personality);
+        // --- Moscas y Efectos Ambientales ---
+        this.createAmbientFlies();
 
         // --- Interacción ---
-        this.physics.add.overlap(this.player, this.npcs, this.handleNPCProximity, null, this);
+        this.input.on('pointerdown', () => this.startDialog());
 
-        // --- Controles ---
-        this.cursors = this.input.keyboard.createCursorKeys();
-
-        // --- Texto de ayuda interección ---
-        this.interactText = this.add.text(width / 2, height - 100, 'Presiona E para hablar', {
+        // UI Tip (con glow)
+        this.uiTip = this.add.text(width / 2, height - 30, 'HAZ CLIC PARA INVESTIGAR LA ESCENA', {
             fontFamily: '"Press Start 2P"',
-            fontSize: '12px',
-            fill: '#00ff41'
-        }).setOrigin(0.5).setVisible(false);
+            fontSize: '11px',
+            fill: '#00ff41',
+            stroke: '#003311',
+            strokeThickness: 4
+        }).setOrigin(0.5).setDepth(100);
 
-        this.input.keyboard.on('keydown-E', () => {
-            if (this.nearbyNPC) {
-                this.startDialog(this.nearbyNPC);
-            }
+        this.tweens.add({
+            targets: this.uiTip,
+            alpha: 0.5,
+            duration: 1000,
+            yoyo: true,
+            loop: -1
         });
 
-        // Escuchar eventos de apertura de puertas desde el sistema de diálogo
-        this.events.on('open-door', (npcName) => {
-            if (npcName === 'GuardXorblax') this.openDoor();
-        });
+        this.events.on('open-door', () => this.openDoor());
     }
 
     update() {
-        this.player.setVelocity(0);
+        // La actualización de iluminación ya no es necesaria con el asset estático
+    }
 
-        if (this.cursors.left.isDown) this.player.setVelocityX(-160);
-        else if (this.cursors.right.isDown) this.player.setVelocityX(160);
+    createAmbientFlies() {
+        for (let i = 0; i < 6; i++) {
+            const fly = this.add.sprite(
+                Phaser.Math.Between(50, 750),
+                Phaser.Math.Between(50, 450),
+                'alien_fly'
+            ).setScale(1.5).setDepth(60);
 
-        if (this.cursors.up.isDown) this.player.setVelocityY(-160);
-        else if (this.cursors.down.isDown) this.player.setVelocityY(160);
+            this.add.particles(0, 0, 'fly_trail', {
+                speed: 10,
+                scale: { start: 1, end: 0 },
+                alpha: { start: 0.3, end: 0 },
+                lifespan: 600,
+                follow: fly
+            });
 
-        // Limpiar proximidad
-        if (this.nearbyNPC && Phaser.Math.Distance.Between(this.player.x, this.player.y, this.nearbyNPC.x, this.nearbyNPC.y) > 60) {
-            this.nearbyNPC = null;
-            this.interactText.setVisible(false);
+            this.tweens.add({
+                targets: fly,
+                x: `+=${Phaser.Math.Between(-60, 60)}`,
+                y: `+=${Phaser.Math.Between(-60, 60)}`,
+                duration: 2500 + Phaser.Math.Between(0, 1000),
+                yoyo: true,
+                loop: -1,
+                ease: 'Sine.easeInOut'
+            });
         }
     }
 
-    createMap() {
-        this.walls = this.physics.add.staticGroup();
-
-        // Suelo
-        for (let x = 0; x < 800; x += TILE) {
-            for (let y = 0; y < 500; y += TILE) {
-                this.add.image(x, y, 'floor').setOrigin(0);
-            }
-        }
-
-        // Paredes Perimetrales
-        for (let x = 0; x < 800; x += TILE) {
-            this.walls.create(x, 0, 'wall').setOrigin(0).refreshBody();
-            this.walls.create(x, 500 - TILE, 'wall').setOrigin(0).refreshBody();
-        }
-        for (let y = TILE; y < 500 - TILE; y += TILE) {
-            this.walls.create(0, y, 'wall').setOrigin(0).refreshBody();
-            this.walls.create(800 - TILE, y, 'wall').setOrigin(0).refreshBody();
-        }
-    }
-
-    handleNPCProximity(player, npc) {
-        this.nearbyNPC = npc;
-        this.interactText.setVisible(true);
-    }
-
-    startDialog(npc) {
+    startDialog() {
         this.scene.pause();
         this.scene.launch('DialogScene', {
-            npcName: npc.getData('name'),
-            displayName: npc.getData('displayName'),
-            personality: npc.getData('personality')
+            npcName: 'GuardXorblax',
+            displayName: 'Panel de Acceso',
+            personality: 'un panel de seguridad con una voz sintetizada fría y hostil que requiere códigos verbales en alemán'
         });
     }
 
     openDoor() {
         this.tweens.add({
-            targets: this.door,
-            y: this.door.y - 100,
-            duration: 1000,
-            ease: 'Power2',
+            targets: this.cameras.main,
+            shake: { duration: 500, intensity: 0.01 },
             onComplete: () => {
-                this.door.body.enable = false; // El jugador puede pasar
+                this.background.setTint(0x00ff00);
+                this.add.text(400, 250, 'ACCESS GRANTED', {
+                    fontFamily: '"Press Start 2P"',
+                    fontSize: '24px',
+                    fill: '#00ff41'
+                }).setOrigin(0.5).setDepth(200);
             }
         });
     }

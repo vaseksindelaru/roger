@@ -36,21 +36,26 @@ export async function askNPC(npcPersonality, playerMessage, playerProfile) {
                 targetLanguage: playerProfile.targetLanguage,
                 playerLevel: playerProfile.level,
             }),
-            signal: AbortSignal.timeout(12000), // 12 segundos máx
+            signal: AbortSignal.timeout(12000),
         });
 
         if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
             console.warn('[GeminiService] Error HTTP:', response.status);
-            return errData.fallback || FALLBACK;
+            return FALLBACK;
         }
 
-        const data = await response.json();
-        console.log('[GeminiService] Respuesta recibida:', data);
-        return data;
+        return await response.json();
 
     } catch (error) {
-        console.error('[GeminiService] Error de red:', error.message);
+        if (error.name === 'TypeError') {
+            console.error('[GeminiService] Bloqueo de CORS detectado o Servidor caído.');
+            return {
+                ...FALLBACK,
+                npc_dialogue: '... [ERROR DE CONEXIÓN] ... Bitte, activa el proxy local o revisa el CORS.',
+                feedback_es: 'Parece que el navegador bloqueó la conexión (CORS). Ejecuta el proxy localmente.'
+            };
+        }
+        console.error('[GeminiService] Error:', error.message);
         return FALLBACK;
     }
 }

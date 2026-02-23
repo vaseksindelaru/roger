@@ -1,14 +1,22 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AstroFleet: Language Quest 🚀</title>
-  <meta name="description" content="Aprende alemán explorando una nave espacial retrô. Habla con NPCs alienígenas controlados por IA." />
+  <meta name="description"
+    content="Aprende alemán explorando una nave espacial retrô. Habla con NPCs alienígenas controlados por IA." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap"
+    rel="stylesheet" />
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
       background: #000;
       display: flex;
@@ -19,24 +27,55 @@
       font-family: 'Press Start 2P', monospace;
       overflow: hidden;
     }
+
     #game-container {
       position: relative;
       border: 3px solid #00ff41;
       box-shadow: 0 0 30px #00ff41, 0 0 60px #00ff4133;
+      overflow: hidden;
     }
-    canvas { display: block; image-rendering: pixelated; }
-    #ui-overlay {
+
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+    }
+
+    /* Efecto CRT Scanlines */
+    #game-container::before {
+      content: " ";
+      display: block;
       position: absolute;
-      bottom: 0; left: 0; right: 0;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+      z-index: 1000;
+      background-size: 100% 4px, 3px 100%;
       pointer-events: none;
-      z-index: 10;
+    }
+
+    /* Viñeta dinámia */
+    #game-container::after {
+      content: " ";
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      right: 0;
+      background: radial-gradient(circle, rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.4) 100%);
+      z-index: 1001;
+      pointer-events: none;
     }
   </style>
 </head>
+
 <body>
   <div id="game-container">
     <div id="ui-overlay"></div>
   </div>
   <script type="module" src="/src/main.js"></script>
 </body>
+
 </html>

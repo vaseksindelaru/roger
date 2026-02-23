@@ -25,4 +25,4 @@ const config = {
     scene: [BootScene, MenuScene, GameScene, DialogScene, HUDScene],
 };
 
-new Phaser.Game(config);
+window.game = new Phaser.Game(config);

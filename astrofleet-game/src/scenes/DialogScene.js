@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { askNPC } from '../services/GeminiService.js';
 import { PlayerState } from '../services/PlayerState.js';
+import { voiceService } from '../services/VoiceService.js';
 
 export class DialogScene extends Phaser.Scene {
     constructor() {
@@ -18,16 +19,16 @@ export class DialogScene extends Phaser.Scene {
         this.add.rectangle(0, 0, width, height, 0x000000, 0.7).setOrigin(0);
 
         // Caja de diálogo
-        const dialogBox = this.add.rectangle(width / 2, height / 2, 700, 400, 0x0a0a2a, 0.95);
+        const dialogBox = this.add.rectangle(width / 2, height / 2, 700, 450, 0x0a0a2a, 0.95);
         dialogBox.setStrokeStyle(4, 0x00ff41);
 
-        this.titleText = this.add.text(width / 2, height / 2 - 170, `SISTEMA DE COMUNICACIÓN: ${this.npcData.displayName}`, {
+        this.titleText = this.add.text(width / 2, height / 2 - 190, `SISTEMA DE COMUNICACIÓN: ${this.npcData.displayName}`, {
             fontFamily: '"Press Start 2P"',
             fontSize: '14px',
             fill: '#00ff41'
         }).setOrigin(0.5);
 
-        this.historyText = this.add.text(width / 2 - 320, height / 2 - 130, 'Estableciendo conexión...', {
+        this.historyText = this.add.text(width / 2 - 320, height / 2 - 140, 'Estableciendo conexión...', {
             fontFamily: 'VT323',
             fontSize: '24px',
             fill: '#ffffff',
@@ -35,11 +36,23 @@ export class DialogScene extends Phaser.Scene {
         });
 
         // Input del usuario
-        this.inputText = this.add.text(width / 2 - 320, height / 2 + 100, '> Escribe aquí...', {
+        this.inputText = this.add.text(width / 2 - 320, height / 2 + 80, '> Escribe o usa el Micro...', {
             fontFamily: 'VT323',
             fontSize: '24px',
             fill: '#00ffff'
         });
+
+        // --- BOTÓN DE MICRÓFONO ---
+        this.micButton = this.add.container(width / 2 + 280, height / 2 + 100);
+        const micBg = this.add.circle(0, 0, 30, 0x00ff41, 0.2);
+        micBg.setStrokeStyle(2, 0x00ff41);
+        const micIcon = this.add.text(0, 0, '🎤', { fontSize: '32px' }).setOrigin(0.5);
+        this.micButton.add([micBg, micIcon]);
+        this.micButton.setInteractive(new Phaser.Geom.Circle(0, 0, 30), Phaser.Geom.Circle.Contains);
+
+        this.micButton.on('pointerdown', () => this.startVoiceInput());
+        this.micButton.on('pointerover', () => micBg.setFillStyle(0x00ff41, 0.5));
+        this.micButton.on('pointerout', () => micBg.setFillStyle(0x00ff41, 0.2));
 
         this.userInput = '';
 
@@ -55,8 +68,46 @@ export class DialogScene extends Phaser.Scene {
             this.inputText.setText(`> ${this.userInput}_`);
         });
 
+        // Mapeo de saludos iniciales según el idioma
+        const greetings = {
+            'German': '¿Was wollen Sie?',
+            'English': '¿What do you want?',
+            'Spanish': '¿Qué es lo que quieres?'
+        };
+        const initialGreetingText = greetings[PlayerState.targetLanguage] || greetings['German'];
+
         // Primer mensaje del sistema
-        this.updateHistory(`${this.npcData.displayName}: "¿Was wollen Sie?"`);
+        const initialGreeting = `${this.npcData.displayName}: "${initialGreetingText}"`;
+        this.updateHistory(initialGreeting);
+        voiceService.speak(initialGreetingText);
+    }
+
+    startVoiceInput() {
+        this.inputText.setText('> ESCUCHANDO... (Habla ahora)');
+        this.micButton.setAlpha(0.5);
+        this.tweens.add({
+            targets: this.micButton,
+            scale: 1.2,
+            duration: 200,
+            yoyo: true,
+            repeat: -1
+        });
+
+        voiceService.startListening(
+            (text) => {
+                this.userInput = text;
+                this.inputText.setText(`> ${this.userInput}`);
+                this.tweens.killTweensOf(this.micButton);
+                this.micButton.setScale(1).setAlpha(1);
+                this.sendMessage();
+            },
+            (error) => {
+                console.error('Error Mic:', error);
+                this.inputText.setText(`> ERROR MIC: ${error}. Escribe manual.`);
+                this.tweens.killTweensOf(this.micButton);
+                this.micButton.setScale(1).setAlpha(1);
+            }
+        );
     }
 
     updateHistory(text) {
@@ -80,6 +131,9 @@ export class DialogScene extends Phaser.Scene {
             const levelUp = PlayerState.addXP(response.xp_reward);
             this.game.events.emit('update-hud');
         }
+
+        // Leer respuesta en voz alta
+        voiceService.speak(response.npc_dialogue);
 
         // Mostrar respuesta
         let fullText = `${this.npcData.displayName}: "${response.npc_dialogue}"\n\n`;

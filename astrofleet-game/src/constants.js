@@ -2,7 +2,7 @@
 //  constants.js — Constantes globales del juego
 // ============================================================
 
-export const PROXY_URL = 'https://rogerroblox-production.up.railway.app';
+export const PROXY_URL = 'http://localhost:8080';
 export const GAME_SECRET = 'astrofleet-secret-2026';
 
 export const COLORS = {
