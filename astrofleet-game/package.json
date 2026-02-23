@@ -1,0 +1,16 @@
+{
+    "name": "astrofleet-game",
+    "version": "1.0.0",
+    "description": "AstroFleet: Language Quest — Space Quest style retro game with AI NPCs",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview"
+    },
+    "dependencies": {
+        "phaser": "^3.70.0"
+    },
+    "devDependencies": {
+        "vite": "^5.0.0"
+    }
+}

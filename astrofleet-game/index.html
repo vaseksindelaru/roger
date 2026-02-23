@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AstroFleet: Language Quest 🚀</title>
+  <meta name="description" content="Aprende alemán explorando una nave espacial retrô. Habla con NPCs alienígenas controlados por IA." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Press Start 2P', monospace;
+      overflow: hidden;
+    }
+    #game-container {
+      position: relative;
+      border: 3px solid #00ff41;
+      box-shadow: 0 0 30px #00ff41, 0 0 60px #00ff4133;
+    }
+    canvas { display: block; image-rendering: pixelated; }
+    #ui-overlay {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="ui-overlay"></div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
