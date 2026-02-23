@@ -30,6 +30,7 @@ export class BootScene extends Phaser.Scene {
 
         // --- Carga de Cinemática Principal ---
         this.load.image('full_scene', 'assets/full_scene.png');
+        this.load.image('interior_hallway', 'assets/interior_hallway.png');
     }
 
     create() {
@@ -119,6 +120,26 @@ export class BootScene extends Phaser.Scene {
             g.fillStyle(0x00ff00, 0.2); g.fillCircle(4, 4, 4);
             g.generateTexture('fly_trail', 8, 8);
             console.log('Texture created: fly_trail');
+
+            // --- Puerta Mecánica Detallada (Industrial) ---
+            g.clear();
+            g.fillStyle(0x333333, 1);
+            g.fillRect(0, 0, 128, 256);
+            g.lineStyle(4, 0x555555);
+            g.strokeRect(4, 4, 120, 248);
+            // Rayas de precaución (Caution Stripes)
+            g.fillStyle(0xffff00, 1);
+            for (let i = 0; i < 10; i++) {
+                g.fillRect(10, 20 + (i * 25), 20, 10);
+                g.fillRect(98, 20 + (i * 25), 20, 10);
+            }
+            g.fillStyle(0x000000, 1);
+            for (let i = 0; i < 10; i++) {
+                g.fillRect(10, 30 + (i * 25), 20, 10);
+                g.fillRect(98, 30 + (i * 25), 20, 10);
+            }
+            g.generateTexture('mechanical_door', 128, 256);
+            console.log('Texture created: mechanical_door');
 
             g.destroy();
         } catch (e) {

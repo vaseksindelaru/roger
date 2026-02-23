@@ -148,11 +148,17 @@ export class DialogScene extends Phaser.Scene {
         if (response.game_action === 'open_door') {
             const mainGame = this.scene.get('GameScene');
             mainGame.events.emit('open-door', this.npcData.npcName);
-        }
 
-        this.input.keyboard.once('keydown-ESC', () => {
-            this.scene.stop();
-            this.scene.resume('GameScene');
-        });
+            // Auto-cerrar tras breve retardo para ver la respuesta
+            this.time.delayedCall(1500, () => {
+                this.scene.stop();
+                this.scene.resume('GameScene');
+            });
+        } else {
+            this.input.keyboard.once('keydown-ESC', () => {
+                this.scene.stop();
+                this.scene.resume('GameScene');
+            });
+        }
     }
 }
